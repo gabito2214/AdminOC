@@ -550,25 +550,91 @@ const DocsModule = {
                     }
                 }
 
-                // --- HYBRID ABSOLUTE STRATEGY (Best for Forms/Invoices) ---
-                // 1. Render Page to Image (Background)
-                const viewport = page.getViewport({ scale: 2.0 }); // High quality
+                // --- SMART HYBRID STRATEGY (Total Editability + Visual Fidelity) ---
+                // 1. Setup Canvas for Background (High Quality)
+                const scale = 2.0;
+                const viewport = page.getViewport({ scale: scale });
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
+                // Render original PDF page to canvas
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                const bgImgData = canvas.toDataURL('image/jpeg', 0.8);
 
-                // PDF Dimensions (Point units)
+                // 2. "Erase" Text from the Canvas Image
+                // This ensures that when we put editable text on top, the static text doesn't show up underneath.
+                // If the user deletes the editable text, the background will be clean.
+
+                // PDF Layout Info
                 const pdfViewport = page.getViewport({ scale: 1.0 });
                 const pageW = pdfViewport.width;
                 const pageH = pdfViewport.height;
 
+                items.forEach(item => {
+                    if (item.type === 'text' && item.str.trim()) {
+                        // PDF Coords (Points) -> Canvas Coords (Pixels)
+                        // PDF Y is from bottom. Viewport handles conversion.
+                        // item.x, item.y, item.w, item.h are in PDF points.
+                        // item.y is baseline.
+
+                        // We need the bounding box of the text to erase.
+                        // x is left, y is baseline.
+                        // Top is y + h (in PDF coords from bottom) -> but Viewport converts correctly.
+
+                        // Use viewport.convertToViewportRectangle to be safe?
+                        // Rect: [x_min, y_min, x_max, y_max]
+                        // PDF: [x, y, x+w, y+h] (approx)
+
+                        // Let's manually calculate for transparency
+                        // Viewport transform: [scale, 0, 0, -scale, 0, height] roughly.
+                        // x_px = x * scale
+                        // y_px = (PageH - y) * scale - (h * scale)?
+
+                        // Easier: use the viewport util.
+                        // rect = [x, y, x+w, y+h]
+                        // But y is bottom. 
+                        const pdfRect = [item.x, item.y, item.x + item.w, item.y + item.h];
+                        const pixelRect = viewport.convertToViewportRectangle(pdfRect);
+                        // pixelRect is [x_min, y_min, x_max, y_max] in Canvas Coords (Top-Left 0,0)
+
+                        const x = Math.floor(pixelRect[0]);
+                        const y = Math.floor(pixelRect[1]); // Top-left Y
+                        const w = Math.ceil(pixelRect[2] - pixelRect[0]);
+                        const h = Math.ceil(pixelRect[3] - pixelRect[1]); // Height
+
+                        // Safety check
+                        if (w > 0 && h > 0 && x >= 0 && y >= 0) {
+                            // SMART ERASE: Sample the background color just outside the text?
+                            // Or just assume white/transparent?
+                            // Sampling: Top-Left corner - 2px??
+                            // Let's sample the very top-left pixel of the region. 
+                            // Usually text is on top of bg.
+                            // If we assume the text color is dark and bg is light.
+
+                            // Simple approach: Sample a few pixels around the box?
+                            // Simplest robust: Sample (x-2, y+h/2).
+
+                            // Let's try to sample the pixel at (x, y) - checking if it is the Background color.
+                            // Actually, since text is anti-aliased, (x,y) might be text.
+                            // Let's sample just OUTSIDE the box. (x - 5, y + h/2).
+                            const sampleX = Math.max(0, x - 5);
+                            const sampleY = Math.min(canvas.height - 1, y + Math.floor(h / 2));
+                            const p = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+                            const color = `rgb(${p[0]},${p[1]},${p[2]})`;
+
+                            ctx.fillStyle = color;
+                            // We expand the erase box slightly to catch anti-aliasing
+                            ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+                        }
+                    }
+                });
+
+                const bgImgData = canvas.toDataURL('image/jpeg', 0.85);
+
                 let pageHtml = `<div style="position:relative; width:${pageW}pt; height:${pageH}pt; page-break-after:always; margin-bottom:20px; overflow:hidden;">`;
 
-                // Add Background Image
+                // Add "Cleaned" Background Image
                 pageHtml += `
                     <img src="${bgImgData}" style="
                         position:absolute; 
@@ -579,23 +645,14 @@ const DocsModule = {
                     ">
                 `;
 
-                // 2. Render Text (Absolute + Masking)
+                // 3. Render Text (Absolute, Transparent Background)
                 for (const item of items) {
                     if (item.type === 'text' && item.str.trim()) {
-                        // Calculate Font Size from Transform (Scale X)
-                        // Transform is [scaleX, skewX, skewY, scaleY, x, y]
-                        // We use typical scaleX. 
-                        const tx = [item.w / (item.str.length * 0.5), 0, 0, item.h, item.x, item.y]; // Fallback if transform missing
-                        // Actually items from getTextContent have .transform
-                        // But we mapped them earlier to custom object.
-                        // We need to trust item.h?
-                        // Earlier map: h: item.height || Math.sqrt(tx[0]...
-
+                        // Font size
                         let fontSize = item.h;
-                        if (!fontSize || fontSize < 4) fontSize = 10; // Safety floor
+                        if (!fontSize || fontSize < 4) fontSize = 10;
 
-                        // Vertical align fix: PDF y is baseline. HTML top is Ascender.
-                        // Approx font height adjustment.
+                        // Position
                         const top = pageH - item.y - (fontSize * 0.8);
 
                         // Clean content
@@ -606,9 +663,6 @@ const DocsModule = {
                             .replace(/"/g, '&quot;')
                             .replace(/'/g, '&#039;');
 
-                        // We add background:white to Hide the underlying image text
-                        // This prevents "bold/double text" visual glitches and makes it look cleaner.
-                        // We use a small padding to ensure coverage.
                         pageHtml += `
                             <div style="
                                 position:absolute;
@@ -619,15 +673,13 @@ const DocsModule = {
                                 white-space: nowrap;
                                 z-index: 2;
                                 line-height: 1;
-                                background-color: white;
-                                padding: 0 1px;
+                                color: #000; 
                             ">${content}</div>
                         `;
                     }
                 }
 
-                // Images? We skip extracted images because they are already in the Background Render!
-                // This simplifies things and preserves layering/clipping correctness.
+                // No need to render images separately, they are in the background!
 
                 pageHtml += `</div>`;
                 docBody += pageHtml;
