@@ -550,112 +550,169 @@ const DocsModule = {
                     }
                 }
 
-                // --- SMART HYBRID STRATEGY (Total Editability + Visual Fidelity) ---
-                // 1. Setup Canvas for Background (High Quality)
+                // --- DECONSTRUCTIVE COMPONENT STRATEGY (Vectors + Images + Text) ---
+
+                // 1. Prepare Background Canvas (High Quality)
                 const scale = 2.0;
                 const viewport = page.getViewport({ scale: scale });
-                const canvas = document.createElement('canvas');
+                const canvas = document.createElement('canvas'); // Background Canvas
                 const ctx = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                // Render original PDF page to canvas
+                // Render Full Page initially
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                // 2. "Erase" Text from the Canvas Image
-                // This ensures that when we put editable text on top, the static text doesn't show up underneath.
-                // If the user deletes the editable text, the background will be clean.
+                // 2. Extract Images (To act as separate layers)
+                // We need to parse operators to find images and their positions
+                const ops = await page.getOperatorList();
+                const extractedImages = [];
 
-                // PDF Layout Info
-                const pdfViewport = page.getViewport({ scale: 1.0 });
-                const pageW = pdfViewport.width;
-                const pageH = pdfViewport.height;
+                // Matrix helper
+                const multiply = (m1, m2) => {
+                    return [
+                        m1[0] * m2[0] + m1[1] * m2[2],
+                        m1[0] * m2[1] + m1[1] * m2[3],
+                        m1[2] * m2[0] + m1[3] * m2[2],
+                        m1[2] * m2[1] + m1[3] * m2[3],
+                        m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+                        m1[4] * m2[1] + m1[5] * m2[3] + m2[5]
+                    ];
+                };
 
+                let ctm = [1, 0, 0, 1, 0, 0];
+                const transformStack = [];
+
+                for (let opIdx = 0; opIdx < ops.fnArray.length; opIdx++) {
+                    const fn = ops.fnArray[opIdx];
+                    const args = ops.argsArray[opIdx];
+
+                    if (fn === pdfjsLib.OPS.save) {
+                        transformStack.push([...ctm]);
+                    } else if (fn === pdfjsLib.OPS.restore) {
+                        if (transformStack.length > 0) ctm = transformStack.pop();
+                    } else if (fn === pdfjsLib.OPS.transform) {
+                        ctm = multiply(ctm, args);
+                    } else if (fn === pdfjsLib.OPS.paintImageXObject) {
+                        const imgName = args[0];
+                        try {
+                            const imgObj = await page.objs.get(imgName);
+                            if (imgObj) {
+                                // PDF Image Coords
+                                const x = ctm[4];
+                                const y = ctm[5];
+                                const w = Math.sqrt(ctm[0] * ctm[0] + ctm[1] * ctm[1]);
+                                const h = Math.sqrt(ctm[2] * ctm[2] + ctm[3] * ctm[3]);
+
+                                // Extract Content
+                                const tempCanvas = document.createElement('canvas');
+                                tempCanvas.width = imgObj.width;
+                                tempCanvas.height = imgObj.height;
+                                const tempCtx = tempCanvas.getContext('2d');
+
+                                if (imgObj instanceof ImageBitmap || imgObj instanceof HTMLImageElement || imgObj instanceof HTMLCanvasElement) {
+                                    tempCtx.drawImage(imgObj, 0, 0);
+                                } else if (imgObj.data) {
+                                    const imageData = new ImageData(new Uint8ClampedArray(imgObj.data), imgObj.width, imgObj.height);
+                                    tempCtx.putImageData(imageData, 0, 0);
+                                }
+                                const imgUrl = tempCanvas.toDataURL('image/png');
+
+                                extractedImages.push({ src: imgUrl, x, y, w, h });
+                            }
+                        } catch (e) {
+                            console.warn('Image extraction error', e);
+                        }
+                    }
+                }
+
+                // 3. Process Background: ERASE Images and Text
+                // We want the background to ONLY contain vector graphics (lines, bg colors)
+
+                // Erase Images from Background
+                extractedImages.forEach(img => {
+                    const pdfRect = [img.x, img.y, img.x + img.w, img.y + img.h];
+                    const pixelRect = viewport.convertToViewportRectangle(pdfRect);
+                    const rx = Math.floor(pixelRect[0]);
+                    const ry = Math.floor(pixelRect[1]);
+                    const rw = Math.ceil(pixelRect[2] - pixelRect[0]);
+                    const rh = Math.ceil(pixelRect[3] - pixelRect[1]);
+
+                    // Clear with a tiny buffer to avoid edge artifacts
+                    ctx.clearRect(rx - 1, ry - 1, rw + 2, rh + 2);
+                });
+
+                // Erase Text from Background
                 items.forEach(item => {
                     if (item.type === 'text' && item.str.trim()) {
-                        // PDF Coords (Points) -> Canvas Coords (Pixels)
-                        // PDF Y is from bottom. Viewport handles conversion.
-                        // item.x, item.y, item.w, item.h are in PDF points.
-                        // item.y is baseline.
-
-                        // We need the bounding box of the text to erase.
-                        // x is left, y is baseline.
-                        // Top is y + h (in PDF coords from bottom) -> but Viewport converts correctly.
-
-                        // Use viewport.convertToViewportRectangle to be safe?
-                        // Rect: [x_min, y_min, x_max, y_max]
-                        // PDF: [x, y, x+w, y+h] (approx)
-
-                        // Let's manually calculate for transparency
-                        // Viewport transform: [scale, 0, 0, -scale, 0, height] roughly.
-                        // x_px = x * scale
-                        // y_px = (PageH - y) * scale - (h * scale)?
-
-                        // Easier: use the viewport util.
-                        // rect = [x, y, x+w, y+h]
-                        // But y is bottom. 
                         const pdfRect = [item.x, item.y, item.x + item.w, item.y + item.h];
                         const pixelRect = viewport.convertToViewportRectangle(pdfRect);
-                        // pixelRect is [x_min, y_min, x_max, y_max] in Canvas Coords (Top-Left 0,0)
+                        const rx = Math.floor(pixelRect[0]);
+                        const ry = Math.floor(pixelRect[1]);
+                        const rw = Math.ceil(pixelRect[2] - pixelRect[0]);
+                        const rh = Math.ceil(pixelRect[3] - pixelRect[1]);
 
-                        const x = Math.floor(pixelRect[0]);
-                        const y = Math.floor(pixelRect[1]); // Top-left Y
-                        const w = Math.ceil(pixelRect[2] - pixelRect[0]);
-                        const h = Math.ceil(pixelRect[3] - pixelRect[1]); // Height
-
-                        // Safety check
-                        if (w > 0 && h > 0 && x >= 0 && y >= 0) {
-                            // SMART ERASE: Sample the background color just outside the text?
-                            // Or just assume white/transparent?
-                            // Sampling: Top-Left corner - 2px??
-                            // Let's sample the very top-left pixel of the region. 
-                            // Usually text is on top of bg.
-                            // If we assume the text color is dark and bg is light.
-
-                            // Simple approach: Sample a few pixels around the box?
-                            // Simplest robust: Sample (x-2, y+h/2).
-
-                            // Let's try to sample the pixel at (x, y) - checking if it is the Background color.
-                            // Actually, since text is anti-aliased, (x,y) might be text.
-                            // Let's sample just OUTSIDE the box. (x - 5, y + h/2).
-                            const sampleX = Math.max(0, x - 5);
-                            const sampleY = Math.min(canvas.height - 1, y + Math.floor(h / 2));
-                            const p = ctx.getImageData(sampleX, sampleY, 1, 1).data;
-                            const color = `rgb(${p[0]},${p[1]},${p[2]})`;
-
-                            ctx.fillStyle = color;
-                            // We expand the erase box slightly to catch anti-aliasing
-                            ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-                        }
+                        // Sample background color (simple inpainting)
+                        const sampleX = Math.max(0, rx - 5);
+                        const sampleY = Math.min(canvas.height - 1, ry + Math.floor(rh / 2));
+                        const p = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+                        ctx.fillStyle = `rgb(${p[0]},${p[1]},${p[2]})`;
+                        ctx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
                     }
                 });
 
-                const bgImgData = canvas.toDataURL('image/jpeg', 0.85);
+                const cleanBgData = canvas.toDataURL('image/jpeg', 0.85);
+                const pageW = page.getViewport({ scale: 1.0 }).width;
+                const pageH = page.getViewport({ scale: 1.0 }).height;
 
                 let pageHtml = `<div style="position:relative; width:${pageW}pt; height:${pageH}pt; page-break-after:always; margin-bottom:20px; overflow:hidden;">`;
 
-                // Add "Cleaned" Background Image
+                // A. Layer 0: Vector Background (Lines/Colors)
                 pageHtml += `
-                    <img src="${bgImgData}" style="
-                        position:absolute; 
-                        left:0; top:0; 
-                        width:${pageW}pt; 
-                        height:${pageH}pt; 
-                        z-index: 0;
+                    <img src="${cleanBgData}" style="
+                        position:absolute; left:0; top:0; width:${pageW}pt; height:${pageH}pt; z-index: 0;
                     ">
                 `;
 
-                // 3. Render Text (Absolute, Transparent Background)
+                // B. Layer 1: Images (Selectable/Deletable)
+                extractedImages.forEach(img => {
+                    // Coordinates need to be flipped? 
+                    // img.y is bottom-left in PDF.
+                    // HTML Top = PageHeight - (y + h) if y is bottom. 
+                    // BUT viewport.convertToViewportRectangle handles this usually.
+                    // We need HTML Point coordinates.
+
+                    // Let's use the same logic as Text:
+                    // Text Top = PageH - y - fontsize.
+                    // Image Top = PageH - (y + h) ??
+                    // If y is bottom of image.
+                    // Let's verify standard PDF coords: (0,0) is bottom-left.
+                    // Image drawn at x,y with height h. y is the bottom edge.
+                    // So Top edge is y+h.
+                    // So HTML Top (from top) = PageH - (y+h).
+
+                    const top = pageH - (img.y + img.h);
+
+                    pageHtml += `
+                        <img src="${img.src}" style="
+                            position:absolute;
+                            left:${img.x}pt;
+                            top:${top}pt;
+                            width:${img.w}pt;
+                            height:${img.h}pt;
+                            object-fit:contain;
+                            z-index: 1;
+                        ">
+                    `;
+                });
+
+                // C. Layer 2: Text (Editable)
                 for (const item of items) {
                     if (item.type === 'text' && item.str.trim()) {
-                        // Font size
-                        let fontSize = item.h;
-                        if (!fontSize || fontSize < 4) fontSize = 10;
-
-                        // Position
+                        let fontSize = item.h || 10;
+                        if (fontSize < 4) fontSize = 10;
                         const top = pageH - item.y - (fontSize * 0.8);
 
-                        // Clean content
                         let content = item.str
                             .replace(/&/g, '&amp;')
                             .replace(/</g, '&lt;')
@@ -663,6 +720,7 @@ const DocsModule = {
                             .replace(/"/g, '&quot;')
                             .replace(/'/g, '&#039;');
 
+                        // Transparent background now, because we cleaned the base image!
                         pageHtml += `
                             <div style="
                                 position:absolute;
@@ -673,13 +731,11 @@ const DocsModule = {
                                 white-space: nowrap;
                                 z-index: 2;
                                 line-height: 1;
-                                color: #000; 
+                                color: #000;
                             ">${content}</div>
                         `;
                     }
                 }
-
-                // No need to render images separately, they are in the background!
 
                 pageHtml += `</div>`;
                 docBody += pageHtml;
