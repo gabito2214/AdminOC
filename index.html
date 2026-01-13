@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdminOC</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Models for AI features later -->
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+    <!-- Browser Security Warning for file:// -->
+    <div id="protocol-warning"
+        class="hidden bg-amber-500 text-white px-4 py-2 text-center text-sm font-medium z-50 relative">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        ¡Atención! Estás usando el protocolo <code>file://</code>. Para que las herramientas Multimedia funcionen, usa:
+        <a href="http://localhost:3000" class="underline font-bold ml-1">http://localhost:3000</a>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-slate-800 shadow-md flex-shrink-0 flex flex-col z-20">
+            <div class="p-6 border-b border-slate-200 dark:border-slate-700">
+                <h1
+                    class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    AdminOC</h1>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                <a href="#" data-view="dashboard"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">
+                    <i class="fas fa-th-large w-6"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Documentos
+                </div>
+                <a href="#" data-view="docs-pdf"
+                    class="nav-item flex items-center px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <i class="fas fa-file-pdf w-6"></i>
+                    <span>Gestión PDF</span>
+                </a>
+
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Visual</div>
+                <a href="#" data-view="visual-img"
+                    class="nav-item flex items-center px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <i class="fas fa-image w-6"></i>
+                    <span>Inteligencia Visual</span>
+                </a>
+
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Multimedia
+                </div>
+                <a href="#" data-view="media-tools"
+                    class="nav-item flex items-center px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <i class="fas fa-photo-video w-6"></i>
+                    <span>Herramientas A/V</span>
+                </a>
+
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Utilidades
+                </div>
+                <a href="#" data-view="utils-general"
+                    class="nav-item flex items-center px-4 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <i class="fas fa-tools w-6"></i>
+                    <span>Herramientas Admin</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700">
+                <button id="theme-toggle"
+                    class="flex items-center justify-center w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i class="fas fa-moon mr-2"></i>
+                    <span>Modo Oscuro</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto relative z-10">
+            <header
+                class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md sticky top-0 z-10 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <h2 id="page-title" class="text-xl font-semibold text-slate-800 dark:text-white">Dashboard</h2>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-slate-500">v1.0.0</span>
+                </div>
+            </header>
+
+            <div id="app-content" class="p-6 max-w-7xl mx-auto space-y-6">
+                <!-- Content injected here -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Dashboard Cards Placeholder -->
+                    <div
+                        class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer border border-slate-200 dark:border-slate-700 group">
+                        <div
+                            class="w-12 h-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-file-pdf text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-lg mb-1">Gestión Documental</h3>
+                        <p class="text-slate-500 text-sm">Convertir, unir y proteger PDFs.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/modules/docs.js"></script>
+    <script src="js/modules/visual.js"></script>
+    <script src="js/modules/media.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/modules/utils.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

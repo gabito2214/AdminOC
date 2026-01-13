@@ -1,0 +1,12 @@
+{
+  "name": "adminoc",
+  "version": "1.0.0",
+  "description": "Plataforma Administrativa con Herramientas A/V",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
