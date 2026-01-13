@@ -550,102 +550,87 @@ const DocsModule = {
                     }
                 }
 
-                // 4. Sort Items Spatially (Y Desc, X Asc)
-                items.sort((a, b) => {
-                    const yDiff = b.y - a.y;
-                    if (Math.abs(yDiff) > 5) return yDiff; // Different lines
-                    return a.x - b.x; // Same line (L->R)
-                });
+                // --- ABSOLUTE POSITIONING STRATEGY (Better for Forms/Invoices) ---
+                const viewport = page.getViewport({ scale: 1.0 });
+                const pageHeight = viewport.height;
 
-                // 5. Group into Lines
-                const lines = [];
-                let currentLine = null;
+                let pageHtml = `<div style="position:relative; width:${viewport.width}pt; height:${viewport.height}pt; page-break-after:always; margin-bottom:20px; background:white; overflow:hidden;">`;
 
+                // 1. Render Images (Absolute)
+                // Filter images to avoid huge duplicates if header strategy was used, 
+                // but for absolute mode we just place them where they are.
                 for (const item of items) {
-                    if (item.type === 'text' && !item.str.trim()) continue; // Skip empty text
+                    if (item.type === 'image') {
+                        // PDF Y is from bottom. HTML is from top.
+                        // item.y is usually bottom-left of image?
+                        // transform[5] is translate Y. 
+                        // For images, we calculated x,y,w,h in the extraction step.
+                        // assuming item.y is bottom-left (standard PDF).
+                        // HTML Top = PageHeight - (ItemY + ItemHeight) 
+                        // OR PageHeight - ItemY? 
+                        // usually item.y is the bottom of the image in PDF.
+                        // So Top = PageHeight - (item.y + item.h) is wrong if y is top.
+                        // Standard PDF: 0,0 is bottom left.
+                        // Image drawn at (x,y) with height h extends to y+h.
+                        // So top in HTML (0 at top) corresponds to PDF (y+h).
+                        // HTML Top = PageHeight - (item.y + item.h);
+                        // Let's rely on the visual check.
 
-                    if (!currentLine) {
-                        currentLine = { y: item.y, items: [item] };
-                    } else {
-                        // Check tolerance (increased for mixed content)
-                        if (Math.abs(item.y - currentLine.y) < 15) {
-                            currentLine.items.push(item);
-                        } else {
-                            lines.push(currentLine);
-                            currentLine = { y: item.y, items: [item] };
-                        }
+                        const top = pageHeight - (item.y + item.h);
+
+                        pageHtml += `
+                            <img src="${item.src}" style="
+                                position:absolute; 
+                                left:${item.x}pt; 
+                                top:${top}pt; 
+                                width:${item.w}pt; 
+                                height:${item.h}pt; 
+                                object-fit:contain;
+                                z-index: 1;
+                            ">
+                        `;
                     }
                 }
-                if (currentLine) lines.push(currentLine);
 
-                let pageHtml = `<div style="margin-bottom: 20pt; page-break-after: always; position:relative;">`;
+                // 2. Render Text (Absolute)
+                for (const item of items) {
+                    if (item.type === 'text' && item.str.trim()) {
+                        // PDF Text Coords: x,y are usually the baseline start.
+                        // HTML Top needs to account for font height.
+                        // Rough approx: Top = PageHeight - ItemY - (FontSize * DescentFactor)
+                        // Or just PageHeight - ItemY (Baseline).
+                        // HTML text is usually top-aligned.
+                        // Word/HTML: 'top' is top of bounding box.
+                        // PDF: 'y' is baseline.
+                        // So HTML Top = PageHeight - y - FontSize (approx).
 
-                // 6. Render to HTML with Styles
-                const commonObjs = page.commonObjs; // Access font objects if needed later, but items usually have fontName
+                        // Font size
+                        const fontSize = item.h || 10;
 
-                for (const line of lines) {
-                    const firstItem = line.items[0];
-                    const leftMargin = firstItem.x;
+                        // Approx top position
+                        const top = pageHeight - item.y - (fontSize * 0.2); // Adjust slightly for baseline
 
-                    let lineHtml = '';
+                        // Clean content
+                        let content = item.str
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
 
-                    // We need to calculate the dominant style for the paragraph or use spans
-                    // Word prefers standard paragraphs. We'll use spans for mixed styles.
-
-                    for (const item of line.items) {
-                        if (item.type === 'image') {
-                            const wPt = item.w;
-                            // Ensure images are block if they are large (like header)
-                            // or inline if small.
-                            if (item.w > 200) {
-                                // Block image (Header) - Reset margin for full bleed
-                                lineHtml = `<img src="${item.src}" style="width:100%; height:auto; display:block;">`;
-                                // We might want to break the paragraph for this
-                            } else {
-                                lineHtml += `<img src="${item.src}" style="width:${wPt}pt; height:auto; vertical-align:middle;">`;
-                            }
-                        } else {
-                            // Extract Styles
-                            let fontWeight = 'normal';
-                            let fontStyle = 'normal';
-                            let fontFamily = 'Arial, sans-serif'; // Default
-
-                            // Try to deduce style from font name internal property if available
-                            // item.fontName is often like "g_d0_f1"
-                            // We need to look it up in page.commonObjs or similar, but simplified:
-                            // We use simplistic detection if we can't access full font tables easily in this context.
-                            // Actually, pdf.js textContent usually just gives basic info.
-                            // But let's assume standard sans.
-
-                            // If we want high fidelity, we need to inspect the 'fontName' in 'commonObjs'
-                            // This is async and complex in the minimal loop. 
-                            // Standard fallback:
-
-                            const fontSize = item.h || 11;
-
-                            // Check if standard system fonts might apply (hacky but works for some PDFs)
-                            // If not, we just use the size.
-
-                            // Clean content
-                            const content = item.str.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-
-                            lineHtml += `<span style="font-size:${fontSize}pt; font-family:${fontFamily};">${content}</span>`;
-                        }
+                        pageHtml += `
+                            <div style="
+                                position:absolute;
+                                left:${item.x}pt;
+                                top:${top}pt;
+                                font-size:${fontSize}pt;
+                                font-family: 'Arial', sans-serif;
+                                white-space: nowrap;
+                                z-index: 2;
+                                line-height: 1;
+                            ">${content}</div>
+                        `;
                     }
-
-                    // Special case for Header Image line? 
-                    // If line has ONLY 1 image and it's wide, remove margins?
-                    const isHeaderLine = line.items.length === 1 && line.items[0].type === 'image' && line.items[0].w > 200;
-
-                    pageHtml += `
-                        <p style="
-                            margin-left: ${isHeaderLine ? 0 : leftMargin}pt; 
-                            margin-top: 2pt; 
-                            margin-bottom: 2pt;
-                            line-height: 1.2;
-                            text-align: left;
-                        ">${lineHtml}</p>
-                    `;
                 }
 
                 pageHtml += `</div>`;
