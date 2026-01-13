@@ -171,6 +171,18 @@ a {
     width: 100%;
 }
 
+.w-8 {
+    width: 2rem;
+}
+
+.h-8 {
+    height: 2rem;
+}
+
+.object-contain {
+    object-fit: contain;
+}
+
 .text-center {
     text-align: center;
 }
