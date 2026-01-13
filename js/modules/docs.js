@@ -368,20 +368,29 @@ const DocsModule = {
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
 
-                // --- DECONSTRUCTIVE LOGIC (Same as before but render to DOM) ---
-                const scale = 2.0;
-                const viewport = page.getViewport({ scale: scale });
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                // --- SVG DECONSTRUCTION STRATEGY (High Fidelity Vectors) ---
 
-                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                // 1. Render Vectors (Background)
+                const opList = await page.getOperatorList();
+                const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
+                const svg = await svgGfx.getSVG(opList, viewport);
 
-                // Extract Images
-                const ops = await page.getOperatorList();
+                // 2. Clean SVG (Remove Text and Images, keep Paths/Shapes/Colors)
+                const svgTextItems = svg.querySelectorAll('text, tspan');
+                svgTextItems.forEach(el => el.remove());
+                const svgImages = svg.querySelectorAll('image');
+                svgImages.forEach(el => el.remove());
+
+                // Serialize SVG to Data URL
+                const serializer = new XMLSerializer();
+                let svgStr = serializer.serializeToString(svg);
+                const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
+
+                // 3. Extract Images (Existing Logic)
                 const extractedImages = [];
-                // ... (Matrix multiply helper reuse or inline) ...
+                // Ops are already loaded
+                const ops = opList;
                 const multiply = (m1, m2) => [
                     m1[0] * m2[0] + m1[1] * m2[2], m1[0] * m2[1] + m1[1] * m2[3],
                     m1[2] * m2[0] + m1[3] * m2[2], m1[2] * m2[1] + m1[3] * m2[3],
@@ -419,35 +428,12 @@ const DocsModule = {
                     }
                 }
 
-                // Erase Images & Text from Bg
-                extractedImages.forEach(img => {
-                    const rect = viewport.convertToViewportRectangle([img.x, img.y, img.x + img.w, img.y + img.h]);
-                    ctx.clearRect(Math.floor(rect[0]), Math.floor(rect[1]), Math.ceil(rect[2] - rect[0]), Math.ceil(rect[3] - rect[1]));
-                });
+                // Note: No need to "erase" images from SVG background, we removed <image> tags!
+                // No need to "erase" text, we removed <text> tags!
 
                 const textContent = await page.getTextContent();
-                const items = textContent.items; // Use raw items directly? 
+                const items = textContent.items;
 
-                items.forEach(item => {
-                    if (item.str.trim()) {
-                        // Fix for items without width/height in raw textContent? 
-                        // Usually raw items have transform.
-                        // We need to map them like before if they lack w/h properties directly.
-                        // Most pdf.js versions give transform.
-                        const tx = item.transform;
-                        const w = item.width;
-                        const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]);
-                        const x = tx[4]; const y = tx[5];
-
-                        const rect = viewport.convertToViewportRectangle([x, y, x + w, y + h]);
-                        // Inpaint
-                        // Simple Inpaint:
-                        ctx.fillStyle = '#ffffff'; // Assume white paper for now (safer than bad sampling)
-                        ctx.fillRect(Math.floor(rect[0]), Math.floor(rect[1]), Math.ceil(rect[2] - rect[0]), Math.ceil(rect[3] - rect[1]));
-                    }
-                });
-
-                const cleanBgData = canvas.toDataURL('image/jpeg', 0.85);
                 const pdfVP = page.getViewport({ scale: 1.0 });
 
                 // --- RENDER DOM PAGE ---
@@ -456,10 +442,10 @@ const DocsModule = {
                 pageDiv.style.width = `${pdfVP.width}pt`;
                 pageDiv.style.height = `${pdfVP.height}pt`;
 
-                // 1. Background
+                // 1. Background (SVG Vectors)
                 const bgImg = document.createElement('img');
-                bgImg.src = cleanBgData;
-                bgImg.style.cssText = 'position:absolute; left:0; top:0; width:100%; height:100%; z-index:0; user-select:none;';
+                bgImg.src = svgUrl;
+                bgImg.style.cssText = 'position:absolute; left:0; top:0; width:100%; height:100%; z-index:0; user-select:none; pointer-events:none;';
                 pageDiv.appendChild(bgImg);
 
                 // 2. Images
