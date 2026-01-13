@@ -66,7 +66,7 @@ const App = {
 
         switch (view) {
             case 'dashboard':
-                title = 'Dashboard';
+                title = 'Principal';
                 content = this.getDashboardHTML();
                 break;
             case 'docs-pdf':
