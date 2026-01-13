@@ -285,486 +285,280 @@ const DocsModule = {
 
     // ... (Encrypt Fn) ...
 
-    // --- PDF to Word Logic (Simple Text Extraction) ---
+    // --- PDF Editor & Extract Logic ---
+
     getPdfToWordUI() {
         return `
-            <div class="max-w-xl mx-auto space-y-6">
+            <div id="pdf-upload-view" class="max-w-xl mx-auto space-y-6">
                  <div class="border-2 border-dashed border-color rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50">
-                    <input type="file" id="pdf-word-input" accept=".pdf, .jpg, .jpeg, .png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <input type="file" id="pdf-word-input" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     <i class="fas fa-file-word text-3xl text-blue-400 mb-3"></i>
-                    <p class="text-sm font-medium" id="pdf-word-filename">Sube PDF o Imagen para convertir</p>
+                    <p class="text-sm font-medium" id="pdf-word-filename">Sube PDF para editar y convertir</p>
                 </div>
-                
-                <div class="flex items-center justify-center space-x-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <input type="checkbox" id="pdf-word-mode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
-                    <label for="pdf-word-mode" class="text-sm">
-                        <strong>Mantener diseño exacto</strong> (convierte páginas a imágenes)
-                    </label>
+                <button onclick="DocsModule.analyzeAndLoadEditor()" id="btn-analyze" class="btn btn-primary w-full py-3">
+                    Analizar y Abrir Editor
+                </button>
+            </div>
+
+            <!-- EDITOR VIEW (Hidden initially) -->
+            <div id="pdf-editor-view" class="hidden flex h-[calc(100vh-200px)]">
+                <!-- Sidebar -->
+                <div class="w-64 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 p-4 flex flex-col gap-4">
+                    <h3 class="font-bold text-sm uppercase text-muted">Capas y Elementos</h3>
+                    
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked onchange="DocsModule.toggleLayer('text', this.checked)" class="rounded text-blue-600">
+                            <span class="text-sm"><i class="fas fa-font w-5 text-center"></i> Texto</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked onchange="DocsModule.toggleLayer('images', this.checked)" class="rounded text-green-600">
+                            <span class="text-sm"><i class="fas fa-image w-5 text-center"></i> Imágenes</span>
+                        </label>
+                    </div>
+
+                    <div class="border-t border-slate-200 my-2"></div>
+
+                    <div id="selection-controls" class="hidden">
+                        <p class="text-xs text-muted mb-2 font-bold">Seleccionado:</p>
+                        <button onclick="DocsModule.deleteSelected()" class="btn btn-sm bg-red-100 text-red-600 hover:bg-red-200 w-full mb-2">
+                            <i class="fas fa-trash mr-1"></i> Eliminar
+                        </button>
+                         <p class="text-xs text-muted italic">Click en una imagen para seleccionar.</p>
+                    </div>
+
+                    <div class="mt-auto">
+                        <button onclick="DocsModule.exportDocx()" class="btn btn-primary w-full shadow-lg">
+                            <i class="fas fa-file-export mr-2"></i> Exportar a Word
+                        </button>
+                        <button onclick="DocsModule.closeEditor()" class="btn btn-ghost w-full mt-2 text-sm text-muted">
+                            Cancelar
+                        </button>
+                    </div>
                 </div>
 
-                <button onclick="DocsModule.convertPdfToWord()" id="btn-pdf-word" class="btn btn-primary w-full py-3">
-                    Convertir a Word
-                </button>
+                <!-- Main Canvas -->
+                <div class="flex-1 bg-slate-200 overflow-auto p-8 relative flex justify-center">
+                    <div id="editor-pages" class="shadow-2xl">
+                        <!-- Pages will be rendered here -->
+                    </div>
+                </div>
             </div>
         `;
     },
 
-    async convertPdfToWord() {
-        if (!this.pdfToWordFile) {
-            alert('Sube un elemento primero.');
-            return;
-        }
+    activeSelection: null,
 
-        const btn = document.getElementById('btn-pdf-word');
-        const originalText = btn.innerHTML;
+    async analyzeAndLoadEditor() {
+        if (!this.pdfToWordFile) { alert('Sube un archivo primero'); return; }
+
+        const btn = document.getElementById('btn-analyze');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analizando...';
         btn.disabled = true;
 
         try {
             const file = this.pdfToWordFile;
-
-            // --- IMAGE ONLY MODE ---
-            if (file.type.startsWith('image/')) {
-                btn.innerHTML = '<i class="fas fa-eye"></i> Escaneando...';
-                if (!window.Tesseract) throw new Error('Tesseract no cargado. Copiando imagen simple...');
-
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    const imgData = reader.result;
-                    this.createWordFromHtml(`<img src="${imgData}" style="width:100%">`, file.name);
-                    btn.innerHTML = '¡Completado!';
-                    setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
-                };
-                return;
-            }
-
-            // --- PDF MODE ---
-            btn.innerHTML = 'Analizando estructura...';
             const arrayBuffer = await file.arrayBuffer();
             const loadingTask = pdfjsLib.getDocument(arrayBuffer);
             const pdf = await loadingTask.promise;
 
-            let docBody = '';
-            // SCALE: 72pt (PDF) -> 96px (Screen/HTML).
-            const SCALE = 1.33;
+            const editorContainer = document.getElementById('editor-pages');
+            editorContainer.innerHTML = ''; // Clear
 
             for (let i = 1; i <= pdf.numPages; i++) {
-                btn.innerHTML = `Procesando pág ${i}/${pdf.numPages}...`;
                 const page = await pdf.getPage(i);
 
-                // 1. Get Text Items
-                const textContent = await page.getTextContent();
-                let items = textContent.items.map(item => {
-                    const tx = item.transform;
-                    return {
-                        type: 'text',
-                        str: item.str,
-                        x: tx[4],
-                        y: tx[5],
-                        h: item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]),
-                        w: item.width
-                    };
-                });
-
-                // 2. Get Image Items (Advanced: Parse Operators)
-                // We need to fetch the OperatorList to find images and their transforms
-                try {
-                    btn.innerHTML = `Extrayendo imágenes pág ${i}...`;
-                    const ops = await page.getOperatorList();
-                    const extractedImages = [];
-
-                    // Matrix helper
-                    const multiply = (m1, m2) => {
-                        return [
-                            m1[0] * m2[0] + m1[1] * m2[2],
-                            m1[0] * m2[1] + m1[1] * m2[3],
-                            m1[2] * m2[0] + m1[3] * m2[2],
-                            m1[2] * m2[1] + m1[3] * m2[3],
-                            m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
-                            m1[4] * m2[1] + m1[5] * m2[3] + m2[5]
-                        ];
-                    };
-
-                    let ctm = [1, 0, 0, 1, 0, 0]; // Current Transform Matrix
-                    const transformStack = [];
-
-                    for (let opIdx = 0; opIdx < ops.fnArray.length; opIdx++) {
-                        const fn = ops.fnArray[opIdx];
-                        const args = ops.argsArray[opIdx];
-
-                        // OPS.save
-                        if (fn === pdfjsLib.OPS.save) {
-                            transformStack.push([...ctm]);
-                        }
-                        // OPS.restore
-                        else if (fn === pdfjsLib.OPS.restore) {
-                            if (transformStack.length > 0) ctm = transformStack.pop();
-                        }
-                        // OPS.transform
-                        else if (fn === pdfjsLib.OPS.transform) {
-                            ctm = multiply(ctm, args);
-                        }
-                        // OPS.paintImageXObject
-                        else if (fn === pdfjsLib.OPS.paintImageXObject) {
-                            const imgName = args[0];
-                            try {
-                                const imgObj = await page.objs.get(imgName);
-                                if (imgObj) {
-                                    // Calculate position from CTM
-                                    // Image is unit square (0,0) to (1,1) transformed by CTM
-                                    // So [0,0] -> [x,y] is ctm[4], ctm[5]
-                                    // Width/Height are scaled by ctm[0], ctm[3] approx (ignoring rotation for simplicity)
-                                    const w = Math.sqrt(ctm[0] * ctm[0] + ctm[1] * ctm[1]);
-                                    const h = Math.sqrt(ctm[2] * ctm[2] + ctm[3] * ctm[3]);
-
-                                    // Convert bitmap to DataURL
-                                    // imgObj can be an ImageBitmap or HTMLImageElement or data
-                                    let imgUrl = '';
-
-                                    // Create a temporary canvas to draw the image and export to base64
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = imgObj.width;
-                                    canvas.height = imgObj.height;
-                                    const ctx = canvas.getContext('2d');
-
-                                    if (imgObj instanceof ImageBitmap || imgObj instanceof HTMLImageElement || imgObj instanceof HTMLCanvasElement) {
-                                        ctx.drawImage(imgObj, 0, 0);
-                                        imgUrl = canvas.toDataURL('image/png');
-                                    } else if (imgObj.data) {
-                                        // Raw RGBA data
-                                        const imageData = new ImageData(new Uint8ClampedArray(imgObj.data), imgObj.width, imgObj.height);
-                                        ctx.putImageData(imageData, 0, 0);
-                                        imgUrl = canvas.toDataURL('image/png');
-                                    }
-
-                                    if (imgUrl) {
-                                        extractedImages.push({
-                                            type: 'image',
-                                            src: imgUrl,
-                                            x: ctm[4],
-                                            y: ctm[5],
-                                            w: w,
-                                            h: h
-                                        });
-                                    }
-                                }
-                            } catch (err) {
-                                console.warn('Could not extract image', imgName, err);
-                            }
-                        }
-                    }
-                    // Merge images into items
-                    items = items.concat(extractedImages);
-
-                } catch (err) {
-                    console.error('Error parsing images:', err);
-                }
-
-
-                // 3. CHECK FOR EMPTY PAGE (SCANNED PDF FALLBACK).
-                if (items.length === 0) {
-                    // ... (Fallback logic) ...
-                    btn.innerHTML = `Detectado PDF escaneado (pág ${i})...`;
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    const fullPageImg = canvas.toDataURL('image/jpeg', 0.8);
-                    const wPt = viewport.width * 0.75;
-                    items.push({ type: 'image', src: fullPageImg, x: 0, y: viewport.height, w: wPt, h: viewport.height * 0.75 });
-
-                    if (window.Tesseract) {
-                        try {
-                            const { data: { text } } = await Tesseract.recognize(fullPageImg, 'spa');
-                            if (text.trim()) items.push({ type: 'text', str: text, x: 0, y: viewport.height - 20, h: 12, w: wPt });
-                        } catch (e) { console.warn('OCR Failed', e); }
-                    }
-                } else {
-                    // --- HYBRID HEADER STRATEGY ---
-                    // If we have text, we still might be missing vector logos in the header.
-                    // We will snapshot the top 15-20% of the page and use it as a static header image.
-                    // And we will REMOVE text items from that area so they don't duplicate.
-
-                    try {
-                        const HEADER_RATIO = 0.20; // Type 20% of page
-                        const viewport = page.getViewport({ scale: 1.5 }); // High res for image
-                        const headerHeightPx = viewport.height * HEADER_RATIO;
-
-                        // Render ONLY the header slice? 
-                        // Canvas doesn't support partial render easily, we render full and crop.
-                        const canvas = document.createElement('canvas');
-                        canvas.width = viewport.width;
-                        canvas.height = headerHeightPx;
-                        const ctx = canvas.getContext('2d');
-
-                        // We use the render task but clip or just draw the full page offset?
-                        // actually page.render draws the whole thing. We need a temp canvas.
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = viewport.width;
-                        tempCanvas.height = viewport.height;
-
-                        // Render full page to temp (expensive but necessary for vector fidelity)
-                        // Optimization: We could perhaps use a viewport transform to only render top? 
-                        // transform: [1, 0, 0, 1, 0, 0] -> standard.
-                        // Let's stick to full render for safety.
-                        await page.render({ canvasContext: tempCanvas.getContext('2d'), viewport: viewport }).promise;
-
-                        // Draw cropped top to actual canvas
-                        ctx.drawImage(tempCanvas, 0, 0, viewport.width, headerHeightPx, 0, 0, viewport.width, headerHeightPx);
-
-                        const headerImgData = canvas.toDataURL('image/png');
-
-                        // PDF Y coordinates: 0 is bottom, height is top.
-                        // So Header area is Y > (height * (1 - HEADER_RATIO))
-                        const pdfHeaderCutoff = viewport.height * (1 - HEADER_RATIO) / 1.5; // Scale back to PDF units (approx)
-                        // Actually easier: items use PDF coordinates. 
-                        // page.getViewport({scale:1.0}).height is the PDF height base.
-                        const pdfHeight = page.getViewport({ scale: 1.0 }).height;
-                        const headerYThreshold = pdfHeight * (1 - HEADER_RATIO);
-
-                        // Add Header Image Item
-                        // It goes at the very top (highest Y)
-                        const wPt = pdfHeight * (viewport.width / viewport.height); // Estimate width in PDF units
-
-                        // We filter OUT text that is inside the header to prevent duplication
-                        items = items.filter(item => {
-                            if (item.type === 'image') return true; // Keep extracted images generally
-                            if (item.y > headerYThreshold) return false; // Remove text in header
-                            return true;
-                        });
-
-                        // Insert Header Image at top
-                        items.push({
-                            type: 'image',
-                            src: headerImgData,
-                            x: 0,
-                            y: pdfHeight + 100, // Ensure it sorts first
-                            w: wPt, // Full width
-                            h: pdfHeight * HEADER_RATIO
-                        });
-
-                    } catch (e) {
-                        console.warn('Header snapshot failed', e);
-                    }
-                }
-
-                // --- DECONSTRUCTIVE COMPONENT STRATEGY (Vectors + Images + Text) ---
-
-                // 1. Prepare Background Canvas (High Quality)
+                // --- DECONSTRUCTIVE LOGIC (Same as before but render to DOM) ---
                 const scale = 2.0;
                 const viewport = page.getViewport({ scale: scale });
-                const canvas = document.createElement('canvas'); // Background Canvas
+                const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
-                // Render Full Page initially
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                // 2. Extract Images (To act as separate layers)
-                // We need to parse operators to find images and their positions
+                // Extract Images
                 const ops = await page.getOperatorList();
                 const extractedImages = [];
-
-                // Matrix helper
-                const multiply = (m1, m2) => {
-                    return [
-                        m1[0] * m2[0] + m1[1] * m2[2],
-                        m1[0] * m2[1] + m1[1] * m2[3],
-                        m1[2] * m2[0] + m1[3] * m2[2],
-                        m1[2] * m2[1] + m1[3] * m2[3],
-                        m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
-                        m1[4] * m2[1] + m1[5] * m2[3] + m2[5]
-                    ];
-                };
-
+                // ... (Matrix multiply helper reuse or inline) ...
+                const multiply = (m1, m2) => [
+                    m1[0] * m2[0] + m1[1] * m2[2], m1[0] * m2[1] + m1[1] * m2[3],
+                    m1[2] * m2[0] + m1[3] * m2[2], m1[2] * m2[1] + m1[3] * m2[3],
+                    m1[4] * m2[0] + m1[5] * m2[2] + m2[4], m1[4] * m2[1] + m1[5] * m2[3] + m2[5]
+                ];
                 let ctm = [1, 0, 0, 1, 0, 0];
                 const transformStack = [];
 
                 for (let opIdx = 0; opIdx < ops.fnArray.length; opIdx++) {
                     const fn = ops.fnArray[opIdx];
                     const args = ops.argsArray[opIdx];
-
-                    if (fn === pdfjsLib.OPS.save) {
-                        transformStack.push([...ctm]);
-                    } else if (fn === pdfjsLib.OPS.restore) {
-                        if (transformStack.length > 0) ctm = transformStack.pop();
-                    } else if (fn === pdfjsLib.OPS.transform) {
-                        ctm = multiply(ctm, args);
-                    } else if (fn === pdfjsLib.OPS.paintImageXObject) {
+                    if (fn === pdfjsLib.OPS.save) transformStack.push([...ctm]);
+                    else if (fn === pdfjsLib.OPS.restore) { if (transformStack.length > 0) ctm = transformStack.pop(); }
+                    else if (fn === pdfjsLib.OPS.transform) ctm = multiply(ctm, args);
+                    else if (fn === pdfjsLib.OPS.paintImageXObject) {
                         const imgName = args[0];
                         try {
                             const imgObj = await page.objs.get(imgName);
                             if (imgObj) {
-                                // PDF Image Coords
-                                const x = ctm[4];
-                                const y = ctm[5];
+                                const x = ctm[4]; const y = ctm[5];
                                 const w = Math.sqrt(ctm[0] * ctm[0] + ctm[1] * ctm[1]);
                                 const h = Math.sqrt(ctm[2] * ctm[2] + ctm[3] * ctm[3]);
 
-                                // Extract Content
-                                const tempCanvas = document.createElement('canvas');
-                                tempCanvas.width = imgObj.width;
-                                tempCanvas.height = imgObj.height;
-                                const tempCtx = tempCanvas.getContext('2d');
-
-                                if (imgObj instanceof ImageBitmap || imgObj instanceof HTMLImageElement || imgObj instanceof HTMLCanvasElement) {
-                                    tempCtx.drawImage(imgObj, 0, 0);
-                                } else if (imgObj.data) {
-                                    const imageData = new ImageData(new Uint8ClampedArray(imgObj.data), imgObj.width, imgObj.height);
-                                    tempCtx.putImageData(imageData, 0, 0);
+                                const tCanvas = document.createElement('canvas');
+                                tCanvas.width = imgObj.width; tCanvas.height = imgObj.height;
+                                const tCtx = tCanvas.getContext('2d');
+                                if (imgObj.data) {
+                                    tCtx.putImageData(new ImageData(new Uint8ClampedArray(imgObj.data), imgObj.width, imgObj.height), 0, 0);
+                                } else {
+                                    tCtx.drawImage(imgObj, 0, 0);
                                 }
-                                const imgUrl = tempCanvas.toDataURL('image/png');
-
-                                extractedImages.push({ src: imgUrl, x, y, w, h });
+                                extractedImages.push({ src: tCanvas.toDataURL('image/png'), x, y, w, h });
                             }
-                        } catch (e) {
-                            console.warn('Image extraction error', e);
-                        }
+                        } catch (e) { }
                     }
                 }
 
-                // 3. Process Background: ERASE Images and Text
-                // We want the background to ONLY contain vector graphics (lines, bg colors)
-
-                // Erase Images from Background
+                // Erase Images & Text from Bg
                 extractedImages.forEach(img => {
-                    const pdfRect = [img.x, img.y, img.x + img.w, img.y + img.h];
-                    const pixelRect = viewport.convertToViewportRectangle(pdfRect);
-                    const rx = Math.floor(pixelRect[0]);
-                    const ry = Math.floor(pixelRect[1]);
-                    const rw = Math.ceil(pixelRect[2] - pixelRect[0]);
-                    const rh = Math.ceil(pixelRect[3] - pixelRect[1]);
-
-                    // Clear with a tiny buffer to avoid edge artifacts
-                    ctx.clearRect(rx - 1, ry - 1, rw + 2, rh + 2);
+                    const rect = viewport.convertToViewportRectangle([img.x, img.y, img.x + img.w, img.y + img.h]);
+                    ctx.clearRect(Math.floor(rect[0]), Math.floor(rect[1]), Math.ceil(rect[2] - rect[0]), Math.ceil(rect[3] - rect[1]));
                 });
 
-                // Erase Text from Background
-                items.forEach(item => {
-                    if (item.type === 'text' && item.str.trim()) {
-                        const pdfRect = [item.x, item.y, item.x + item.w, item.y + item.h];
-                        const pixelRect = viewport.convertToViewportRectangle(pdfRect);
-                        const rx = Math.floor(pixelRect[0]);
-                        const ry = Math.floor(pixelRect[1]);
-                        const rw = Math.ceil(pixelRect[2] - pixelRect[0]);
-                        const rh = Math.ceil(pixelRect[3] - pixelRect[1]);
+                const textContent = await page.getTextContent();
+                const items = textContent.items; // Use raw items directly? 
 
-                        // Sample background color (simple inpainting)
-                        const sampleX = Math.max(0, rx - 5);
-                        const sampleY = Math.min(canvas.height - 1, ry + Math.floor(rh / 2));
-                        const p = ctx.getImageData(sampleX, sampleY, 1, 1).data;
-                        ctx.fillStyle = `rgb(${p[0]},${p[1]},${p[2]})`;
-                        ctx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
+                items.forEach(item => {
+                    if (item.str.trim()) {
+                        // Fix for items without width/height in raw textContent? 
+                        // Usually raw items have transform.
+                        // We need to map them like before if they lack w/h properties directly.
+                        // Most pdf.js versions give transform.
+                        const tx = item.transform;
+                        const w = item.width;
+                        const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]);
+                        const x = tx[4]; const y = tx[5];
+
+                        const rect = viewport.convertToViewportRectangle([x, y, x + w, y + h]);
+                        // Inpaint
+                        // Simple Inpaint:
+                        ctx.fillStyle = '#ffffff'; // Assume white paper for now (safer than bad sampling)
+                        ctx.fillRect(Math.floor(rect[0]), Math.floor(rect[1]), Math.ceil(rect[2] - rect[0]), Math.ceil(rect[3] - rect[1]));
                     }
                 });
 
                 const cleanBgData = canvas.toDataURL('image/jpeg', 0.85);
-                const pageW = page.getViewport({ scale: 1.0 }).width;
-                const pageH = page.getViewport({ scale: 1.0 }).height;
+                const pdfVP = page.getViewport({ scale: 1.0 });
 
-                let pageHtml = `<div style="position:relative; width:${pageW}pt; height:${pageH}pt; page-break-after:always; margin-bottom:20px; overflow:hidden;">`;
+                // --- RENDER DOM PAGE ---
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'editor-page relative bg-white shadow-lg mb-8';
+                pageDiv.style.width = `${pdfVP.width}pt`;
+                pageDiv.style.height = `${pdfVP.height}pt`;
 
-                // A. Layer 0: Vector Background (Lines/Colors)
-                pageHtml += `
-                    <img src="${cleanBgData}" style="
-                        position:absolute; left:0; top:0; width:${pageW}pt; height:${pageH}pt; z-index: 0;
-                    ">
-                `;
+                // 1. Background
+                const bgImg = document.createElement('img');
+                bgImg.src = cleanBgData;
+                bgImg.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; z-index:0; select-none';
+                pageDiv.appendChild(bgImg);
 
-                // B. Layer 1: Images (Selectable/Deletable)
-                extractedImages.forEach(img => {
-                    // Coordinates need to be flipped? 
-                    // img.y is bottom-left in PDF.
-                    // HTML Top = PageHeight - (y + h) if y is bottom. 
-                    // BUT viewport.convertToViewportRectangle handles this usually.
-                    // We need HTML Point coordinates.
-
-                    // Let's use the same logic as Text:
-                    // Text Top = PageH - y - fontsize.
-                    // Image Top = PageH - (y + h) ??
-                    // If y is bottom of image.
-                    // Let's verify standard PDF coords: (0,0) is bottom-left.
-                    // Image drawn at x,y with height h. y is the bottom edge.
-                    // So Top edge is y+h.
-                    // So HTML Top (from top) = PageH - (y+h).
-
-                    const top = pageH - (img.y + img.h);
-
-                    pageHtml += `
-                        <img src="${img.src}" style="
-                            position:absolute;
-                            left:${img.x}pt;
-                            top:${top}pt;
-                            width:${img.w}pt;
-                            height:${img.h}pt;
-                            object-fit:contain;
-                            z-index: 1;
-                        ">
-                    `;
+                // 2. Images
+                extractedImages.forEach((img, idx) => {
+                    const imgEl = document.createElement('img');
+                    imgEl.src = img.src;
+                    const top = pdfVP.height - (img.y + img.h);
+                    imgEl.style.cssText = `position:absolute; left:${img.x}pt; top:${top}pt; width:${img.w}pt; height:${img.h}pt; z-index:1; cursor:pointer; padding:2px;`;
+                    imgEl.className = 'layer-image hover:ring-2 hover:ring-blue-400';
+                    imgEl.onclick = (e) => this.selectElement(e.target);
+                    pageDiv.appendChild(imgEl);
                 });
 
-                // C. Layer 2: Text (Editable)
-                for (const item of items) {
-                    if (item.type === 'text' && item.str.trim()) {
-                        let fontSize = item.h || 10;
-                        if (fontSize < 4) fontSize = 10;
-                        const top = pageH - item.y - (fontSize * 0.8);
+                // 3. Text
+                items.forEach(item => {
+                    if (!item.str.trim()) return;
+                    const tx = item.transform;
+                    const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]);
+                    // const w = item.width;
+                    const x = tx[4]; const y = tx[5];
 
-                        let content = item.str
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#039;');
+                    const el = document.createElement('div');
+                    const top = pdfVP.height - y - (h * 0.8);
 
-                        // Transparent background now, because we cleaned the base image!
-                        pageHtml += `
-                            <div style="
-                                position:absolute;
-                                left:${item.x}pt;
-                                top:${top}pt;
-                                font-size:${fontSize}pt;
-                                font-family: 'Arial', sans-serif;
-                                white-space: nowrap;
-                                z-index: 2;
-                                line-height: 1;
-                                color: #000;
-                            ">${content}</div>
-                        `;
-                    }
-                }
+                    el.contentEditable = true;
+                    el.className = 'layer-text outline-none hover:bg-yellow-50 focus:bg-white focus:ring-1 focus:ring-blue-300';
+                    el.style.cssText = `
+                        position:absolute; left:${x}pt; top:${top}pt; 
+                        font-size:${h}pt; font-family:sans-serif; 
+                        white-space:nowrap; z-index:2; line-height:1; color:black;
+                    `;
+                    el.innerText = item.str;
+                    pageDiv.appendChild(el);
+                });
 
-                pageHtml += `</div>`;
-                docBody += pageHtml;
+                editorContainer.appendChild(pageDiv);
             }
 
-            this.createWordFromHtml(docBody, file.name); // Using helper which wraps again? 
-            // Wait, createWordFromHtml WRAPS the body. So we should pass docBody directly.
-            // My previous createWordFromHtml already adds the html/head tags.
-            // So in the loop above I should NOT have created 'fullHtml'. I should just pass docBody.
-
-            // Correction: I should update createWordFromHtml to accept the full body style or just pass body.
-            // Current createWordFromHtml does the wrapping. So I will just use that.
-
-            // Re-verified createWordFromHtml:
-            /*
-            createWordFromHtml(bodyContent, filename) {
-                const fullHtml = ... <body>${bodyContent}</body> ...
-            */
-            // So passing docBody is correct.
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
+            // Switch Views
+            document.getElementById('pdf-upload-view').classList.add('hidden');
+            document.getElementById('pdf-editor-view').classList.remove('hidden');
 
         } catch (e) {
             console.error(e);
-            alert('Error al convertir: ' + e.message);
-            btn.innerHTML = originalText;
+            alert('Error al analizar PDF: ' + e.message);
+        } finally {
+            btn.innerHTML = 'Analizar y Abrir Editor';
             btn.disabled = false;
         }
+    },
+
+    selectElement(el) {
+        if (this.activeSelection) {
+            this.activeSelection.classList.remove('ring-4', 'ring-red-500');
+        }
+        this.activeSelection = el;
+        el.classList.add('ring-4', 'ring-red-500');
+        document.getElementById('selection-controls').classList.remove('hidden');
+    },
+
+    deleteSelected() {
+        if (this.activeSelection) {
+            this.activeSelection.remove();
+            this.activeSelection = null;
+            document.getElementById('selection-controls').classList.add('hidden');
+        }
+    },
+
+    toggleLayer(type, visible) {
+        const cls = type === 'text' ? '.layer-text' : '.layer-image';
+        const els = document.querySelectorAll(cls);
+        els.forEach(el => el.style.display = visible ? 'block' : 'none');
+    },
+
+    closeEditor() {
+        document.getElementById('pdf-editor-view').classList.add('hidden');
+        document.getElementById('pdf-upload-view').classList.remove('hidden');
+        document.getElementById('editor-pages').innerHTML = '';
+    },
+
+    exportDocx() {
+        // Collect HTML from Editor Pages
+        const pages = document.querySelectorAll('.editor-page');
+        let fullBody = '';
+
+        pages.forEach(page => {
+            // Clone to avoid modifying editor directly during export processing?
+            // Actually we can just serialize the outerHTML but we need to ensure styles are inline.
+            // DOM properties usually serialize nicely.
+
+            // We need to wrap in relative wrapper for Word
+            fullBody += `
+                <div style="position:relative; width:${page.style.width}; height:${page.style.height}; page-break-after:always; margin-bottom:20px; overflow:hidden;">
+                    ${page.innerHTML} 
+                </div>
+            `;
+        });
+
+        this.createWordFromHtml(fullBody, this.pdfToWordFile ? this.pdfToWordFile.name : 'documento');
     },
 
     createWordFromHtml(bodyContent, filename) {
