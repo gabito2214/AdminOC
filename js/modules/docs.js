@@ -550,65 +550,53 @@ const DocsModule = {
                     }
                 }
 
-                // --- ABSOLUTE POSITIONING STRATEGY (Better for Forms/Invoices) ---
-                const viewport = page.getViewport({ scale: 1.0 });
-                const pageHeight = viewport.height;
+                // --- HYBRID ABSOLUTE STRATEGY (Best for Forms/Invoices) ---
+                // 1. Render Page to Image (Background)
+                const viewport = page.getViewport({ scale: 2.0 }); // High quality
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
 
-                let pageHtml = `<div style="position:relative; width:${viewport.width}pt; height:${viewport.height}pt; page-break-after:always; margin-bottom:20px; background:white; overflow:hidden;">`;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                const bgImgData = canvas.toDataURL('image/jpeg', 0.8);
 
-                // 1. Render Images (Absolute)
-                // Filter images to avoid huge duplicates if header strategy was used, 
-                // but for absolute mode we just place them where they are.
-                for (const item of items) {
-                    if (item.type === 'image') {
-                        // PDF Y is from bottom. HTML is from top.
-                        // item.y is usually bottom-left of image?
-                        // transform[5] is translate Y. 
-                        // For images, we calculated x,y,w,h in the extraction step.
-                        // assuming item.y is bottom-left (standard PDF).
-                        // HTML Top = PageHeight - (ItemY + ItemHeight) 
-                        // OR PageHeight - ItemY? 
-                        // usually item.y is the bottom of the image in PDF.
-                        // So Top = PageHeight - (item.y + item.h) is wrong if y is top.
-                        // Standard PDF: 0,0 is bottom left.
-                        // Image drawn at (x,y) with height h extends to y+h.
-                        // So top in HTML (0 at top) corresponds to PDF (y+h).
-                        // HTML Top = PageHeight - (item.y + item.h);
-                        // Let's rely on the visual check.
+                // PDF Dimensions (Point units)
+                const pdfViewport = page.getViewport({ scale: 1.0 });
+                const pageW = pdfViewport.width;
+                const pageH = pdfViewport.height;
 
-                        const top = pageHeight - (item.y + item.h);
+                let pageHtml = `<div style="position:relative; width:${pageW}pt; height:${pageH}pt; page-break-after:always; margin-bottom:20px; overflow:hidden;">`;
 
-                        pageHtml += `
-                            <img src="${item.src}" style="
-                                position:absolute; 
-                                left:${item.x}pt; 
-                                top:${top}pt; 
-                                width:${item.w}pt; 
-                                height:${item.h}pt; 
-                                object-fit:contain;
-                                z-index: 1;
-                            ">
-                        `;
-                    }
-                }
+                // Add Background Image
+                pageHtml += `
+                    <img src="${bgImgData}" style="
+                        position:absolute; 
+                        left:0; top:0; 
+                        width:${pageW}pt; 
+                        height:${pageH}pt; 
+                        z-index: 0;
+                    ">
+                `;
 
-                // 2. Render Text (Absolute)
+                // 2. Render Text (Absolute + Masking)
                 for (const item of items) {
                     if (item.type === 'text' && item.str.trim()) {
-                        // PDF Text Coords: x,y are usually the baseline start.
-                        // HTML Top needs to account for font height.
-                        // Rough approx: Top = PageHeight - ItemY - (FontSize * DescentFactor)
-                        // Or just PageHeight - ItemY (Baseline).
-                        // HTML text is usually top-aligned.
-                        // Word/HTML: 'top' is top of bounding box.
-                        // PDF: 'y' is baseline.
-                        // So HTML Top = PageHeight - y - FontSize (approx).
+                        // Calculate Font Size from Transform (Scale X)
+                        // Transform is [scaleX, skewX, skewY, scaleY, x, y]
+                        // We use typical scaleX. 
+                        const tx = [item.w / (item.str.length * 0.5), 0, 0, item.h, item.x, item.y]; // Fallback if transform missing
+                        // Actually items from getTextContent have .transform
+                        // But we mapped them earlier to custom object.
+                        // We need to trust item.h?
+                        // Earlier map: h: item.height || Math.sqrt(tx[0]...
 
-                        // Font size
-                        const fontSize = item.h || 10;
+                        let fontSize = item.h;
+                        if (!fontSize || fontSize < 4) fontSize = 10; // Safety floor
 
-                        // Approx top position
-                        const top = pageHeight - item.y - (fontSize * 0.2); // Adjust slightly for baseline
+                        // Vertical align fix: PDF y is baseline. HTML top is Ascender.
+                        // Approx font height adjustment.
+                        const top = pageH - item.y - (fontSize * 0.8);
 
                         // Clean content
                         let content = item.str
@@ -618,6 +606,9 @@ const DocsModule = {
                             .replace(/"/g, '&quot;')
                             .replace(/'/g, '&#039;');
 
+                        // We add background:white to Hide the underlying image text
+                        // This prevents "bold/double text" visual glitches and makes it look cleaner.
+                        // We use a small padding to ensure coverage.
                         pageHtml += `
                             <div style="
                                 position:absolute;
@@ -628,10 +619,15 @@ const DocsModule = {
                                 white-space: nowrap;
                                 z-index: 2;
                                 line-height: 1;
+                                background-color: white;
+                                padding: 0 1px;
                             ">${content}</div>
                         `;
                     }
                 }
+
+                // Images? We skip extracted images because they are already in the Background Render!
+                // This simplifies things and preserves layering/clipping correctness.
 
                 pageHtml += `</div>`;
                 docBody += pageHtml;
