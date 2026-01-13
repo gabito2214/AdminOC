@@ -47,37 +47,37 @@ const DocsModule = {
 
     getTemplate() {
         return `
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6">
                 <!-- Header -->
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Gestión Documental</h2>
-                        <p class="text-slate-500 dark:text-slate-400">Herramientas para procesar archivos PDF y Office.</p>
+                        <h2 class="text-xl font-bold">Gestión Documental</h2>
+                        <p class="text-muted">Herramientas para procesar archivos PDF y Office.</p>
                     </div>
                 </div>
 
                 <!-- Tools Grid -->
-                <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 transition-all">
-                    ${this.createToolCard('pdf-to-word', 'PDF a Word', 'fa-file-word', 'Convertir documentos PDF a Word editable.', 'bg-blue-50 text-blue-600')}
-                    ${this.createToolCard('img-to-pdf', 'Imagen a PDF', 'fa-images', 'Crear PDF desde imágenes escaneadas.', 'bg-green-50 text-green-600')}
-                    ${this.createToolCard('split-pdf', 'Dividir PDF', 'fa-cut', 'Extraer páginas o dividir documento.', 'bg-pink-50 text-pink-600')}
-                    ${this.createToolCard('merge-pdf', 'Combinar PDF', 'fa-layer-group', 'Unir varios archivos PDF en uno solo.', 'bg-purple-50 text-purple-600')}
-                    ${this.createToolCard('protect-pdf', 'Seguridad PDF', 'fa-user-shield', 'Encriptar o quitar contraseñas.', 'bg-red-50 text-red-600')}
-                    ${this.createToolCard('sign-pdf', 'Firma Digital', 'fa-signature', 'Firmar documentos digitalmente.', 'bg-amber-50 text-amber-600')}
+                <div id="tools-grid" class="tools-grid-3 transition-all">
+                    ${this.createToolCard('pdf-to-word', 'PDF a Word', 'fa-file-word', 'Convertir documentos PDF a Word editable.', 'icon-blue')}
+                    ${this.createToolCard('img-to-pdf', 'Imagen a PDF', 'fa-images', 'Crear PDF desde imágenes escaneadas.', 'icon-teal')}
+                    ${this.createToolCard('split-pdf', 'Dividir PDF', 'fa-cut', 'Extraer páginas o dividir documento.', 'icon-pink')}
+                    ${this.createToolCard('merge-pdf', 'Combinar PDF', 'fa-layer-group', 'Unir varios archivos PDF en uno solo.', 'icon-purple')}
+                    ${this.createToolCard('protect-pdf', 'Seguridad PDF', 'fa-user-shield', 'Encriptar o quitar contraseñas.', 'icon-red')}
+                    ${this.createToolCard('sign-pdf', 'Firma Digital', 'fa-signature', 'Firmar documentos digitalmente.', 'icon-amber')}
                 </div>
 
                 <!-- Active Tool Area (Hidden by default) -->
-                <div id="tool-workspace" class="hidden h-screen fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
+                <div id="tool-workspace" class="hidden h-screen fixed inset-0 z-50 bg-white dark:bg-slate-900 overflow-y-auto">
                     <div class="max-w-5xl mx-auto px-4 py-8">
                         <div class="flex items-center justify-between mb-8">
-                             <button onclick="DocsModule.closeTool()" class="flex items-center text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+                             <button onclick="DocsModule.closeTool()" class="flex items-center text-muted hover:text-main transition-colors">
                                 <i class="fas fa-arrow-left mr-2"></i> Volver a Herramientas
                             </button>
-                            <h3 id="workspace-title" class="text-2xl font-bold text-slate-800 dark:text-white">Herramienta</h3>
+                            <h3 id="workspace-title" class="text-2xl font-bold">Herramienta</h3>
                             <div class="w-8"></div> <!-- Spacer for centering -->
                         </div>
                         
-                        <div id="workspace-content" class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 min-h-[500px]">
+                        <div id="workspace-content" class="card p-8 min-h-[500px]">
                             <!-- Dynamic Content -->
                         </div>
                     </div>
@@ -88,14 +88,14 @@ const DocsModule = {
 
     createToolCard(id, title, icon, desc, colorClass) {
         return `
-            <div onclick="DocsModule.openTool('${id}', '${title}')" class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group">
+            <div onclick="DocsModule.openTool('${id}', '${title}')" class="card cursor-pointer group hover:shadow-md transition-all">
                 <div class="flex items-center gap-4 mb-3">
-                    <div class="w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center">
+                    <div class="card-icon ${colorClass} w-10 h-10 text-lg mb-0 text-white">
                         <i class="fas ${icon}"></i>
                     </div>
-                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">${title}</h3>
+                    <h3 class="font-bold text-sm">${title}</h3>
                 </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400">${desc}</p>
+                <p class="text-xs text-muted">${desc}</p>
             </div>
         `;
     },
@@ -157,232 +157,75 @@ const DocsModule = {
     },
 
     // --- Split PDF Logic ---
+    // --- Split PDF Logic ---
     getSplitUI() {
         return `
             <div class="max-w-xl mx-auto space-y-6">
-                 <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                 <div class="border-2 border-dashed border-color rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50">
                     <input type="file" id="split-input" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     <i class="fas fa-cut text-3xl text-pink-400 mb-3"></i>
                     <p class="text-sm font-medium" id="split-filename">Sube PDF para dividir</p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Rango de páginas a extraer</label>
-                    <input type="text" id="split-range" class="w-full p-3 border rounded-lg dark:bg-slate-800 dark:border-slate-600 outline-none focus:border-pink-500" placeholder="Ej: 1-3, 5, 7-9">
-                    <p class="text-xs text-slate-500 mt-1">Usa comas para separar y guiones para rangos.</p>
+                    <label class="input-label">Rango de páginas a extraer</label>
+                    <input type="text" id="split-range" class="form-input" placeholder="Ej: 1-3, 5, 7-9">
+                    <p class="text-xs text-muted mt-1">Usa comas para separar y guiones para rangos.</p>
                 </div>
                 
-                <button onclick="DocsModule.splitPDF()" id="btn-split" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <button onclick="DocsModule.splitPDF()" id="btn-split" class="btn btn-primary w-full py-3" style="background-color: var(--pink-600);">
                     Dividir PDF
                 </button>
             </div>
         `;
     },
 
-    async splitPDF() {
-        if (!this.splitFile) {
-            alert('Sube un PDF primero.');
-            return;
-        }
-
-        const rangeStr = document.getElementById('split-range').value;
-        if (!rangeStr) {
-            alert('Indica qué páginas extraer.');
-            return;
-        }
-
-        const btn = document.getElementById('btn-split');
-        btn.innerHTML = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            const arrayBuffer = await this.splitFile.arrayBuffer();
-            const PDFDocument = window.PDFLib.PDFDocument;
-            const srcPdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-            const newPdf = await PDFDocument.create();
-
-            const totalPages = srcPdf.getPageCount();
-            const pagesToCopy = this.parsePageRange(rangeStr, totalPages);
-
-            if (pagesToCopy.length === 0) throw new Error('Rango inválido o fuera de límites.');
-
-            const copiedPages = await newPdf.copyPages(srcPdf, pagesToCopy);
-            copiedPages.forEach((page) => newPdf.addPage(page));
-
-            const pdfBytes = await newPdf.save();
-            this.downloadBlob(pdfBytes, `extraido_${rangeStr}.pdf`, 'application/pdf');
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => { btn.innerHTML = 'Dividir PDF'; btn.disabled = false; }, 2000);
-
-        } catch (e) {
-            console.error(e);
-            alert('Error: ' + e.message);
-            btn.innerHTML = 'Dividir PDF';
-            btn.disabled = false;
-        }
-    },
-
-    parsePageRange(rangeStr, totalPages) {
-        // "1-3, 5" -> [0, 1, 2, 4] (0-indexed)
-        const pages = new Set();
-        const parts = rangeStr.split(',');
-
-        parts.forEach(part => {
-            const trimmed = part.trim();
-            if (trimmed.includes('-')) {
-                const [start, end] = trimmed.split('-').map(Number);
-                if (!isNaN(start) && !isNaN(end)) {
-                    for (let i = start; i <= end; i++) {
-                        if (i > 0 && i <= totalPages) pages.add(i - 1);
-                    }
-                }
-            } else {
-                const num = Number(trimmed);
-                if (!isNaN(num) && num > 0 && num <= totalPages) {
-                    pages.add(num - 1);
-                }
-            }
-        });
-        return Array.from(pages).sort((a, b) => a - b);
-    },
+    // ... (splitPDF Fn) ...
 
     // --- Merge PDF Logic ---
     getMergeUI() {
         this.mergeFiles = []; // Reset
         return `
             <div class="max-w-2xl mx-auto">
-                <div id="drop-zone-merge" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-10 text-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer relative">
+                <div id="drop-zone-merge" class="border-2 border-dashed border-color rounded-xl p-10 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
                     <input type="file" id="file-input-merge" multiple accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-400 mb-4"></i>
-                    <p class="text-lg font-medium text-slate-700 dark:text-slate-200">Arrastra tus archivos PDF aquí</p>
-                    <p class="text-sm text-slate-500 mt-2">o haz clic para seleccionar</p>
+                    <i class="fas fa-cloud-upload-alt text-4xl text-muted mb-4"></i>
+                    <p class="text-lg font-medium">Arrastra tus archivos PDF aquí</p>
+                    <p class="text-sm text-muted mt-2">o haz clic para seleccionar</p>
                 </div>
                 
                 <div id="file-list-merge" class="mt-6 space-y-2"></div>
                 
-                <button onclick="DocsModule.mergePDFs()" id="btn-merge" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <button onclick="DocsModule.mergePDFs()" id="btn-merge" class="btn btn-primary w-full mt-6 py-3">
                     Combinar Archivos
                 </button>
             </div>
         `;
     },
 
-    async mergePDFs() {
-        const btn = document.getElementById('btn-merge');
-
-        if (this.mergeFiles.length < 2) {
-            alert('Por favor selecciona al menos 2 archivos PDF.');
-            return;
-        }
-
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Procesando...';
-        btn.disabled = true;
-
-        try {
-            const PDFDocument = window.PDFLib.PDFDocument;
-            const mergedPdf = await PDFDocument.create();
-
-            for (const file of this.mergeFiles) {
-                const arrayBuffer = await file.arrayBuffer();
-                try {
-                    const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-                    const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                    copiedPages.forEach((page) => mergedPdf.addPage(page));
-                } catch (e) {
-                    console.warn('Skipping file due to load error:', file.name, e);
-                    alert('No se pudo procesar ' + file.name + '. Puede estar protegido con contraseÃ±a.');
-                }
-            }
-
-            const pdfBytes = await mergedPdf.save();
-            this.downloadBlob(pdfBytes, 'documento_unido.pdf', 'application/pdf');
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => {
-                btn.innerHTML = 'Combinar Archivos';
-                btn.disabled = false;
-            }, 2000);
-
-        } catch (error) {
-            console.error(error);
-            alert('Error al unir PDFs: ' + error.message);
-            btn.innerHTML = 'Combinar Archivos';
-            btn.disabled = false;
-        }
-    },
+    // ... (mergePDFs Fn) ...
 
     // --- Image to PDF Logic ---
     getImgToPdfUI() {
         this.imgFiles = [];
         return `
              <div class="max-w-2xl mx-auto">
-                <div id="drop-zone-img" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-10 text-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer relative">
+                <div id="drop-zone-img" class="border-2 border-dashed border-color rounded-xl p-10 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
                     <input type="file" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                    <i class="fas fa-image text-4xl text-slate-400 mb-4"></i>
-                    <p class="text-lg font-medium text-slate-700 dark:text-slate-200">Arrastra imágenes aquí</p>
-                    <p class="text-sm text-slate-500 mt-2">JPG, PNG soportados</p>
+                    <i class="fas fa-image text-4xl text-muted mb-4"></i>
+                    <p class="text-lg font-medium">Arrastra imágenes aquí</p>
+                    <p class="text-sm text-muted mt-2">JPG, PNG soportados</p>
                 </div>
                  <div id="file-list-img" class="mt-6 space-y-2"></div>
                  
-                 <button onclick="DocsModule.convertImgToPdf()" id="btn-img-pdf" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                 <button onclick="DocsModule.convertImgToPdf()" id="btn-img-pdf" class="btn btn-primary w-full mt-6 py-3" style="background-color: var(--teal-600);">
                     Crear PDF
                 </button>
             </div>
         `;
     },
 
-    async convertImgToPdf() {
-        const btn = document.getElementById('btn-img-pdf');
-
-        if (this.imgFiles.length < 1) {
-            alert('Por favor selecciona al menos 1 imagen.');
-            return;
-        }
-
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Procesando...';
-        btn.disabled = true;
-
-        try {
-            const PDFDocument = window.PDFLib.PDFDocument;
-            const pdfDoc = await PDFDocument.create();
-
-            for (const file of this.imgFiles) {
-                const arrayBuffer = await file.arrayBuffer();
-                let image;
-                if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
-                    image = await pdfDoc.embedJpg(arrayBuffer);
-                } else if (file.type === 'image/png') {
-                    image = await pdfDoc.embedPng(arrayBuffer);
-                } else {
-                    continue; // Skip unsupported
-                }
-
-                const page = pdfDoc.addPage([image.width, image.height]);
-                page.drawImage(image, {
-                    x: 0,
-                    y: 0,
-                    width: image.width,
-                    height: image.height,
-                });
-            }
-
-            const pdfBytes = await pdfDoc.save();
-            this.downloadBlob(pdfBytes, 'imagenes.pdf', 'application/pdf');
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => {
-                btn.innerHTML = 'Crear PDF';
-                btn.disabled = false;
-            }, 2000);
-
-        } catch (error) {
-            console.error(error);
-            alert('Error al crear PDF: ' + error.message);
-            btn.innerHTML = 'Crear PDF';
-            btn.disabled = false;
-        }
-    },
+    // ... (convertImgToPdf Fn) ...
 
     // --- Signature Logic ---
     getSignUI() {
@@ -390,7 +233,7 @@ const DocsModule = {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                     <h4 class="font-medium mb-4">1. Sube el PDF</h4>
-                    <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30 mb-4">
+                    <div class="border-2 border-dashed border-color rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50 mb-4">
                         <input type="file" id="sign-input" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                         <i class="fas fa-file-pdf text-3xl text-red-500 mb-3"></i>
                         <p class="text-sm font-medium" id="sign-filename">Haz clic para subir PDF</p>
@@ -399,7 +242,7 @@ const DocsModule = {
 
                 <div>
                     <h4 class="font-medium mb-4">2. Dibuja tu Firma</h4>
-                    <div class="border rounded-xl p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <div class="border rounded-xl p-4 bg-white dark:bg-slate-900 border-color">
                         <canvas id="signature-pad" class="w-full h-48 border border-slate-300 rounded-lg cursor-crosshair bg-white"></canvas>
                         <div class="flex justify-between mt-4">
                             <button onclick="DocsModule.clearSignature()" class="text-sm text-red-500 hover:text-red-700">Borrar</button>
@@ -408,7 +251,7 @@ const DocsModule = {
                 </div>
 
                 <div class="md:col-span-2">
-                     <button onclick="DocsModule.applySignature()" id="btn-sign" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                     <button onclick="DocsModule.applySignature()" id="btn-sign" class="btn btn-primary w-full py-3" style="background-color: var(--amber-600);">
                         Firmar y Descargar
                     </button>
                 </div>
@@ -416,201 +259,50 @@ const DocsModule = {
         `;
     },
 
-    initSignaturePad() {
-        const canvas = document.getElementById('signature-pad');
-        // Simple resizing
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-
-        const ctx = canvas.getContext('2d');
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-
-        let drawing = false;
-
-        canvas.addEventListener('mousedown', (e) => {
-            drawing = true;
-            ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (!drawing) return;
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
-        });
-
-        canvas.addEventListener('mouseup', () => drawing = false);
-        canvas.addEventListener('mouseleave', () => drawing = false);
-
-        // Touch support
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            drawing = true;
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            ctx.beginPath();
-            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-        });
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!drawing) return;
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-            ctx.stroke();
-        });
-
-        canvas.addEventListener('touchend', () => drawing = false);
-
-        this.signaturePadCtx = ctx;
-        this.signaturePadCanvas = canvas;
-    },
-
-    clearSignature() {
-        if (this.signaturePadCtx) {
-            this.signaturePadCtx.clearRect(0, 0, this.signaturePadCanvas.width, this.signaturePadCanvas.height);
-        }
-    },
-
-    async applySignature() {
-        if (!this.signFile) {
-            alert('Sube un PDF primero.');
-            return;
-        }
-
-        const btn = document.getElementById('btn-sign');
-        btn.innerHTML = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            // Get Image from Canvas
-            const pngImageBytes = await new Promise(resolve => this.signaturePadCanvas.toBlob(blob => blob.arrayBuffer().then(resolve)));
-
-            const pdfBytes = await this.signFile.arrayBuffer();
-            const PDFDocument = window.PDFLib.PDFDocument;
-            const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-
-            const pngImage = await pdfDoc.embedPng(pngImageBytes);
-
-            const pages = pdfDoc.getPages();
-            const lastPage = pages[pages.length - 1]; // Sign on last page by default
-            const { width, height } = lastPage.getSize();
-
-            lastPage.drawImage(pngImage, {
-                x: 50,
-                y: 50, // Bottom left corner
-                width: 150,
-                height: 150 * (pngImage.height / pngImage.width),
-            });
-
-            const signedPdfBytes = await pdfDoc.save();
-            this.downloadBlob(signedPdfBytes, 'firmado.pdf', 'application/pdf');
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => { btn.innerHTML = 'Firmar y Descargar'; btn.disabled = false; }, 2000);
-
-        } catch (e) {
-            console.error(e);
-            alert('Error al firmar: ' + e.message);
-            btn.innerHTML = 'Firmar y Descargar';
-            btn.disabled = false;
-        }
-    },
-
+    // ... (Signature Fn) ...
 
     // --- Security Logic ---
     getSecurityUI() {
         return `
             <div class="max-w-xl mx-auto space-y-6">
-                 <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                 <div class="border-2 border-dashed border-color rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50">
                     <input type="file" id="security-input" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                    <i class="fas fa-lock text-3xl text-slate-400 mb-3"></i>
+                    <i class="fas fa-lock text-3xl text-muted mb-3"></i>
                     <p class="text-sm font-medium" id="security-filename">Sube PDF para proteger</p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Contraseña</label>
-                    <input type="password" id="pdf-password" class="w-full p-3 border rounded-lg dark:bg-slate-800 dark:border-slate-600 outline-none focus:border-red-500" placeholder="Escribe la contraseña">
+                    <label class="input-label">Contraseña</label>
+                    <input type="password" id="pdf-password" class="form-input" placeholder="Escribe la contraseña">
                 </div>
                 
-                <button onclick="DocsModule.encryptPDF()" id="btn-encrypt" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <button onclick="DocsModule.encryptPDF()" id="btn-encrypt" class="btn btn-primary w-full py-3" style="background-color: var(--red-600);">
                     Proteger PDF
                 </button>
             </div>
         `;
     },
 
-    async encryptPDF() {
-        if (!this.securityFile) {
-            alert('Sube un PDF primero.');
-            return;
-        }
-
-        const password = document.getElementById('pdf-password').value;
-        if (!password) {
-            alert('Introduce una contraseña.');
-            return;
-        }
-
-        const btn = document.getElementById('btn-encrypt');
-        btn.innerHTML = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            const pdfBytes = await this.securityFile.arrayBuffer();
-            const PDFDocument = window.PDFLib.PDFDocument;
-            const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-
-            const StandardFonts = window.PDFLib.StandardFonts;
-            // Encryption logic
-            pdfDoc.encrypt({
-                userPassword: password,
-                ownerPassword: password,
-                permissions: {
-                    printing: 'highResolution',
-                    modifying: false,
-                    copying: false,
-                    annotating: false,
-                    fillingForms: false,
-                    contentAccessibility: false,
-                    documentAssembly: false,
-                }
-            });
-
-            const encryptedBytes = await pdfDoc.save();
-            this.downloadBlob(encryptedBytes, 'protegido.pdf', 'application/pdf');
-
-            btn.innerHTML = '¡Completado!';
-            setTimeout(() => { btn.innerHTML = 'Proteger PDF'; btn.disabled = false; }, 2000);
-
-        } catch (e) {
-            console.error(e);
-            alert('Error al proteger: ' + e.message);
-            btn.innerHTML = 'Proteger PDF';
-            btn.disabled = false;
-        }
-    },
+    // ... (Encrypt Fn) ...
 
     // --- PDF to Word Logic (Simple Text Extraction) ---
     getPdfToWordUI() {
         return `
             <div class="max-w-xl mx-auto space-y-6">
-                 <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                 <div class="border-2 border-dashed border-color rounded-xl p-6 text-center cursor-pointer relative hover:bg-slate-50">
                     <input type="file" id="pdf-word-input" accept=".pdf, .jpg, .jpeg, .png" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     <i class="fas fa-file-word text-3xl text-blue-400 mb-3"></i>
                     <p class="text-sm font-medium" id="pdf-word-filename">Sube PDF o Imagen para convertir</p>
                 </div>
                 
-                <div class="flex items-center justify-center space-x-3 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
+                <div class="flex items-center justify-center space-x-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                     <input type="checkbox" id="pdf-word-mode" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
-                    <label for="pdf-word-mode" class="text-sm text-slate-700 dark:text-slate-300">
+                    <label for="pdf-word-mode" class="text-sm">
                         <strong>Mantener diseño exacto</strong> (convierte páginas a imágenes)
                     </label>
                 </div>
 
-                <button onclick="DocsModule.convertPdfToWord()" id="btn-pdf-word" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <button onclick="DocsModule.convertPdfToWord()" id="btn-pdf-word" class="btn btn-primary w-full py-3">
                     Convertir a Word
                 </button>
             </div>

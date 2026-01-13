@@ -28,24 +28,27 @@ const VisualModule = {
 
     getTemplate() {
         return `
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6">
+                <!-- Header -->
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Inteligencia Visual</h2>
-                        <p class="text-slate-500 dark:text-slate-400">Procesamiento de imágenes con IA y utilidades.</p>
+                        <h2 class="text-xl font-bold">Inteligencia Visual</h2>
+                        <p class="text-muted">Procesamiento de imágenes con IA y utilidades.</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    ${this.createToolCard('remove-bg', 'Quitar Fondo', 'fa-eraser', 'Eliminar fondo de imágenes (IA Local).', 'bg-pink-50 text-pink-600')}
-                    ${this.createToolCard('ocr-text', 'OCR (Escanear Texto)', 'fa-font', 'Extraer texto de imágenes escaneadas.', 'bg-indigo-50 text-indigo-600')}
-                    ${this.createToolCard('compress-img', 'Comprimir Imagen', 'fa-compress-arrows-alt', 'Reducir peso sin perder mucha calidad.', 'bg-cyan-50 text-cyan-600')}
+                <!-- Tools Grid -->
+                <div class="tools-grid-3">
+                    ${this.createToolCard('remove-bg', 'Quitar Fondo', 'fa-eraser', 'Eliminar fondo de imágenes (IA Local).', 'icon-pink')}
+                    ${this.createToolCard('ocr-text', 'OCR (Escanear Texto)', 'fa-font', 'Extraer texto de imágenes escaneadas.', 'icon-indigo')}
+                    ${this.createToolCard('compress-img', 'Comprimir Imagen', 'fa-compress-arrows-alt', 'Reducir peso sin perder mucha calidad.', 'icon-teal')}
                 </div>
 
-                <div id="vis-tool-workspace" class="hidden bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
-                        <h3 id="vis-workspace-title" class="text-xl font-semibold">Herramienta</h3>
-                        <button onclick="VisualModule.closeTool()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <!-- Active Tool Area (Hidden by default) -->
+                <div id="vis-tool-workspace" class="hidden card p-6">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-color">
+                        <h3 id="vis-workspace-title" class="text-lg font-bold">Herramienta</h3>
+                        <button onclick="VisualModule.closeTool()" class="text-muted hover:text-main">
                             <i class="fas fa-times text-xl"></i>
                         </button>
                     </div>
@@ -58,14 +61,14 @@ const VisualModule = {
 
     createToolCard(id, title, icon, desc, colorClass) {
         return `
-            <div onclick="VisualModule.openTool('${id}', '${title}')" class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center">
+            <div onclick="VisualModule.openTool('${id}', '${title}')" class="card cursor-pointer group hover:shadow-md transition-all">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="card-icon ${colorClass} w-10 h-10 text-lg mb-0 text-white">
                         <i class="fas ${icon}"></i>
                     </div>
-                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">${title}</h3>
+                    <h3 class="font-bold text-sm">${title}</h3>
                 </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400">${desc}</p>
+                <p class="text-xs text-muted">${desc}</p>
             </div>
         `;
     },
@@ -84,7 +87,7 @@ const VisualModule = {
 
     renderToolUI(toolId, container) {
         // Loading state
-        container.innerHTML = `<div class="p-8 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500 mb-4"></i><p>Cargando...</p></div>`;
+        container.innerHTML = `<div class="p-8 text-center"><i class="fas fa-circle-notch fa-spin text-primary-500 mb-4"></i><p>Cargando...</p></div>`;
 
         setTimeout(() => {
             switch (toolId) {
@@ -109,7 +112,7 @@ const VisualModule = {
     // --- Remove BG Logic ---
     getRemoveBgInterface() {
         return `
-            <div class="flex flex-col lg:flex-row h-[600px] border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
+            <div class="flex flex-col lg:flex-row h-[600px] border border-color rounded-xl overflow-hidden bg-white dark:bg-slate-800">
                 <!-- Main Canvas Area (Left) -->
                 <div class="flex-1 bg-slate-100 dark:bg-slate-900 relative flex items-center justify-center p-4">
                     <!-- Checkerboard background for transparency -->
@@ -119,7 +122,7 @@ const VisualModule = {
                     <div id="rmbg-main-display" class="relative z-10 max-w-full max-h-full">
                         <div class="text-center p-10">
                             <i class="fas fa-image text-6xl text-slate-300 mb-4"></i>
-                            <p class="text-slate-500">Sube una imagen para comenzar</p>
+                            <p class="text-muted">Sube una imagen para comenzar</p>
                         </div>
                     </div>
 
@@ -128,27 +131,27 @@ const VisualModule = {
                 </div>
 
                 <!-- Sidebar Controls (Right) -->
-                <div class="w-full lg:w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 p-6 flex flex-col z-30">
-                    <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Eliminar Fondo</h3>
+                <div class="w-full lg:w-80 bg-white dark:bg-slate-800 border-l border-color p-6 flex flex-col z-30">
+                    <h3 class="text-lg font-bold mb-6">Eliminar Fondo</h3>
                     
                     <div class="flex-1 space-y-4">
                         <div id="rmbg-controls-upload" class="block">
-                            <button onclick="document.getElementById('rmbg-input').click()" class="w-full py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl hover:bg-blue-50 font-medium transition-colors">
+                            <button onclick="document.getElementById('rmbg-input').click()" class="w-full py-3 border-2 border-dashed border-color text-primary-600 rounded-xl hover:bg-slate-50 font-medium transition-colors">
                                 <i class="fas fa-upload mr-2"></i> Subir Imagen
                             </button>
                         </div>
                         
                         <div id="rmbg-controls-action" class="hidden space-y-4">
-                            <div class="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Archivo</p>
+                            <div class="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                <p class="text-xs text-muted mb-1">Archivo</p>
                                 <p id="rmbg-filename" class="font-medium truncate text-sm">imagen.jpg</p>
                             </div>
 
-                            <button onclick="VisualModule.runRemoveBg()" id="btn-rmbg" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl shadow-lg shadow-blue-600/20 font-semibold transition-all hover:scale-[1.02] active:scale-95">
+                            <button onclick="VisualModule.runRemoveBg()" id="btn-rmbg" class="btn btn-primary w-full py-3">
                                 Eliminar Fondo
                             </button>
                             
-                            <div id="rmbg-status" class="hidden text-center text-sm text-blue-600 font-medium animate-pulse">
+                            <div id="rmbg-status" class="hidden text-center text-sm text-primary-600 font-medium animate-pulse">
                                 <i class="fas fa-circle-notch fa-spin mr-2"></i> Procesando...
                             </div>
                         </div>
@@ -158,17 +161,17 @@ const VisualModule = {
                                 <i class="fas fa-check-circle mr-1"></i> Fondo eliminado
                             </div>
                             
-                            <a id="rmbg-download" href="#" class="block w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-3 rounded-xl text-center font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+                            <a id="rmbg-download" href="#" class="btn btn-primary w-full py-3">
                                 Descargar
                             </a>
                             
-                            <button onclick="VisualModule.resetRemoveBg()" class="w-full py-2 text-slate-500 hover:text-slate-700 text-sm">
+                            <button onclick="VisualModule.resetRemoveBg()" class="w-full py-2 text-muted hover:text-main text-sm">
                                 Subir otra imagen
                             </button>
                         </div>
                     </div>
                     
-                    <div class="mt-auto pt-6 text-xs text-center text-slate-400">
+                    <div class="mt-auto pt-6 text-xs text-center text-muted">
                         Potenciado por AI • Privacidad Local
                     </div>
                 </div>
@@ -302,15 +305,15 @@ const VisualModule = {
         return `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-4">
-                    <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                    <div class="border-2 border-dashed border-color rounded-xl p-8 text-center cursor-pointer relative hover:bg-slate-50">
                         <input type="file" id="ocr-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                        <i class="fas fa-eye text-3xl text-slate-400 mb-3"></i>
+                        <i class="fas fa-eye text-3xl text-muted mb-3"></i>
                         <p class="font-medium">Sube una imagen para escanear</p>
                     </div>
-                    <div id="ocr-preview" class="hidden rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 max-h-64 flex justify-center bg-slate-100 dark:bg-slate-900">
+                    <div id="ocr-preview" class="hidden rounded-lg overflow-hidden border border-color max-h-64 flex justify-center bg-slate-100 dark:bg-slate-900">
                         <!-- Image Preview -->
                     </div>
-                    <button onclick="VisualModule.runOCR()" id="btn-ocr" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg disabled:opacity-50 transition-colors">
+                    <button onclick="VisualModule.runOCR()" id="btn-ocr" class="btn btn-primary w-full py-2" style="background-color: var(--indigo-600);">
                         Extraer Texto
                     </button>
                     
@@ -323,9 +326,9 @@ const VisualModule = {
                 </div>
 
                 <div class="relative">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Texto Detectado</label>
-                    <textarea id="ocr-result" class="w-full h-[300px] p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono leading-relaxed resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="El texto extraído aparecerá aquí..."></textarea>
-                    <button onclick="navigator.clipboard.writeText(document.getElementById('ocr-result').value)" class="absolute top-8 right-2 p-2 text-slate-400 hover:text-indigo-600 bg-white/50 backdrop-blur rounded-md" title="Copiar">
+                    <label class="input-label">Texto Detectado</label>
+                    <textarea id="ocr-result" class="form-input h-[300px] font-mono leading-relaxed resize-none" placeholder="El texto extraído aparecerá aquí..."></textarea>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('ocr-result').value)" class="absolute top-8 right-2 p-2 text-muted hover:text-main bg-white/50 backdrop-blur rounded-md" title="Copiar">
                         <i class="far fa-copy"></i>
                     </button>
                 </div>

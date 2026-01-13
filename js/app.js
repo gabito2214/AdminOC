@@ -51,12 +51,10 @@ const App = {
     handleNavigation(view, newActiveEl) {
         // Update Active State
         this.dom.navItems.forEach(el => {
-            el.classList.remove('bg-blue-50', 'text-blue-700', 'dark:bg-blue-900/30', 'dark:text-blue-400', 'font-medium');
-            el.classList.add('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-100', 'dark:hover:bg-slate-700/50');
+            el.classList.remove('active');
         });
 
-        newActiveEl.classList.remove('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-100', 'dark:hover:bg-slate-700/50');
-        newActiveEl.classList.add('bg-blue-50', 'text-blue-700', 'dark:bg-blue-900/30', 'dark:text-blue-400', 'font-medium');
+        newActiveEl.classList.add('active');
 
         this.loadView(view);
     },
@@ -77,9 +75,7 @@ const App = {
                     content = window.DocsModule.getTemplate();
                     setTimeout(() => window.DocsModule.init(), 100);
                 } else {
-                    // Dynamic load if not present (simple version for now assumes script tag or we inject it)
-                    // For now, we'll assume it's loaded via script tag in index.html (I need to add it there)
-                    content = '<div class="text-center p-10 text-red-500">Módulo no cargado. Refresca la página.</div>';
+                    content = '<div class="text-center p-6 text-red-500 card">Módulo Docs no cargado.</div>';
                 }
                 break;
             case 'visual-img':
@@ -88,7 +84,7 @@ const App = {
                     content = window.VisualModule.getTemplate();
                     setTimeout(() => window.VisualModule.init(), 100);
                 } else {
-                    content = '<div class="text-center p-10 text-red-500">Módulo no cargado.</div>';
+                    content = '<div class="text-center p-6 text-red-500 card">Módulo Visual no cargado.</div>';
                 }
                 break;
             case 'media-tools':
@@ -97,21 +93,21 @@ const App = {
                     content = window.MediaModule.getTemplate();
                     setTimeout(() => window.MediaModule.init(), 100);
                 } else {
-                    content = '<div class="text-center p-10 text-red-500">Módulo no cargado.</div>';
+                    content = '<div class="text-center p-6 text-red-500 card">Módulo Media no cargado.</div>';
                 }
                 break;
             case 'utils-general':
-                title = 'Imprescindibles';
+                title = 'Utilidades';
                 if (window.UtilsModule) {
                     content = window.UtilsModule.getTemplate();
                     setTimeout(() => window.UtilsModule.init(), 100);
                 } else {
-                    content = '<div class="text-center p-10 text-red-500">Módulo no cargado.</div>';
+                    content = '<div class="text-center p-6 text-red-500 card">Módulo Utils no cargado.</div>';
                 }
                 break;
             default:
                 title = '404';
-                content = '<div class="text-center p-10 text-red-500">Vista no encontrada</div>';
+                content = '<div class="text-center p-10 text-red-500 card">Vista no encontrada</div>';
         }
 
         this.dom.pageTitle.textContent = title;
@@ -144,45 +140,45 @@ const App = {
 
     getDashboardHTML() {
         return `
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="tools-grid">
                 <!-- Module Cards -->
-                <div onclick="App.handleNavigation('docs-pdf', document.querySelector('[data-view=\\'docs-pdf\\']'))" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-slate-200 dark:border-slate-700 group">
-                    <div class="w-12 h-12 rounded-lg bg-red-100 text-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-file-pdf text-xl"></i>
+                <div onclick="App.handleNavigation('docs-pdf', document.querySelector('[data-view=\\'docs-pdf\\']'))" class="card cursor-pointer group">
+                    <div class="card-icon icon-red group-hover:scale-110 transition-transform">
+                        <i class="fas fa-file-pdf"></i>
                     </div>
-                    <h3 class="font-semibold text-lg mb-1 text-slate-800 dark:text-white">Gestión Documental</h3>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm">PDF a Word, Unir, Encriptar y Firmar documentos.</p>
+                    <h3 class="card-title">Gestión Documental</h3>
+                    <p class="card-desc">PDF a Word, Unir, Encriptar y Firmar documentos.</p>
                 </div>
 
-                <div onclick="App.handleNavigation('visual-img', document.querySelector('[data-view=\\'visual-img\\']'))" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-slate-200 dark:border-slate-700 group">
-                    <div class="w-12 h-12 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-wand-magic-sparkles text-xl"></i>
+                <div onclick="App.handleNavigation('visual-img', document.querySelector('[data-view=\\'visual-img\\']'))" class="card cursor-pointer group">
+                    <div class="card-icon icon-purple group-hover:scale-110 transition-transform">
+                        <i class="fas fa-wand-magic-sparkles"></i>
                     </div>
-                    <h3 class="font-semibold text-lg mb-1 text-slate-800 dark:text-white">Inteligencia Visual</h3>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm">Quitar fondos, OCR y compresión de imágenes.</p>
+                    <h3 class="card-title">Inteligencia Visual</h3>
+                    <p class="card-desc">Quitar fondos, OCR y compresión de imágenes.</p>
                 </div>
 
-                <div onclick="App.handleNavigation('media-tools', document.querySelector('[data-view=\\'media-tools\\']'))" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-slate-200 dark:border-slate-700 group">
-                    <div class="w-12 h-12 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-video text-xl"></i>
+                <div onclick="App.handleNavigation('media-tools', document.querySelector('[data-view=\\'media-tools\\']'))" class="card cursor-pointer group">
+                    <div class="card-icon icon-pink group-hover:scale-110 transition-transform">
+                        <i class="fas fa-video"></i>
                     </div>
-                    <h3 class="font-semibold text-lg mb-1 text-slate-800 dark:text-white">Multimedia</h3>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm">Transcripción, convertidores y edición básica.</p>
+                    <h3 class="card-title">Multimedia</h3>
+                    <p class="card-desc">Transcripción, convertidores y edición básica.</p>
                 </div>
 
-                <div onclick="App.handleNavigation('utils-general', document.querySelector('[data-view=\\'utils-general\\']'))" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-slate-200 dark:border-slate-700 group">
-                    <div class="w-12 h-12 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-calculator text-xl"></i>
+                <div onclick="App.handleNavigation('utils-general', document.querySelector('[data-view=\\'utils-general\\']'))" class="card cursor-pointer group">
+                    <div class="card-icon icon-amber group-hover:scale-110 transition-transform">
+                        <i class="fas fa-calculator"></i>
                     </div>
-                    <h3 class="font-semibold text-lg mb-1 text-slate-800 dark:text-white">Utilidades</h3>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm">Generador QR, Limpiador de texto y Cálculos.</p>
+                    <h3 class="card-title">Utilidades</h3>
+                    <p class="card-desc">Generador QR, Limpiador de texto y Cálculos.</p>
                 </div>
             </div>
 
-            <div class="mt-8">
-                <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Acceso Rápido</h3>
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <div class="text-center text-slate-500 py-8">
+            <div class="mt-4">
+                <h3 class="text-lg font-bold mb-4">Acceso Rápido</h3>
+                <div class="card p-6">
+                    <div class="text-center text-muted py-8">
                         <i class="fas fa-history text-4xl mb-3 opacity-20"></i>
                         <p>No hay archivos recientes procesados.</p>
                     </div>

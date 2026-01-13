@@ -23,28 +23,28 @@ const MediaModule = {
 
     getTemplate() {
         return `
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Multimedia</h2>
-                        <p class="text-slate-500 dark:text-slate-400">Herramientas de Audio y Video.</p>
+                        <h2 class="text-xl font-bold">Multimedia</h2>
+                        <p class="text-muted">Herramientas de Audio y Video.</p>
                     </div>
-                    <button onclick="MediaModule.setApiKey()" class="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1 rounded-full transition-colors text-slate-600 dark:text-slate-300">
+                    <button onclick="MediaModule.setApiKey()" class="btn btn-outline text-xs">
                         <i class="fas fa-key mr-1"></i> ${this.apiKey ? 'API Key Configurada' : 'Configurar API Key'}
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    ${this.createToolCard('transcription', 'Transcripción Pro', 'fa-microphone-lines', 'Audio a Texto con IA (Whisper).', 'bg-orange-50 text-orange-600')}
-                    ${this.createToolCard('audio-conv', 'Convertir Audio', 'fa-music', 'Formatos mp3, wav, m4a.', 'bg-teal-50 text-teal-600')}
-                    ${this.createToolCard('video-conv', 'Convertir Video', 'fa-video', 'Cambiar formato y resolución.', 'bg-indigo-50 text-indigo-600')}
-                    ${this.createToolCard('audio-extract', 'Extraer Audio', 'fa-file-audio', 'Sacar sonido de videos.', 'bg-rose-50 text-rose-600')}
+                <div class="tools-grid">
+                    ${this.createToolCard('transcription', 'Transcripción Pro', 'fa-microphone-lines', 'Audio a Texto con IA (Whisper).', 'icon-amber')}
+                    ${this.createToolCard('audio-conv', 'Convertir Audio', 'fa-music', 'Formatos mp3, wav, m4a.', 'icon-teal')}
+                    ${this.createToolCard('video-conv', 'Convertir Video', 'fa-video', 'Cambiar formato y resolución.', 'icon-indigo')}
+                    ${this.createToolCard('audio-extract', 'Extraer Audio', 'fa-file-audio', 'Sacar sonido de videos.', 'icon-rose')}
                 </div>
 
-                <div id="media-tool-workspace" class="hidden bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
-                        <h3 id="media-workspace-title" class="text-xl font-semibold">Herramienta</h3>
-                        <button onclick="MediaModule.closeTool()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <div id="media-tool-workspace" class="hidden card p-6">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-b border-color">
+                        <h3 id="media-workspace-title" class="text-lg font-bold">Herramienta</h3>
+                        <button onclick="MediaModule.closeTool()" class="text-muted hover:text-main">
                             <i class="fas fa-times text-xl"></i>
                         </button>
                     </div>
@@ -57,14 +57,14 @@ const MediaModule = {
 
     createToolCard(id, title, icon, desc, colorClass) {
         return `
-            <div onclick="MediaModule.openTool('${id}', '${title}')" class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center">
+            <div onclick="MediaModule.openTool('${id}', '${title}')" class="card cursor-pointer group hover:shadow-md transition-all">
+                <div class="flex items-center gap-4 mb-2">
+                    <div class="card-icon ${colorClass} w-10 h-10 text-lg mb-0">
                         <i class="fas ${icon}"></i>
                     </div>
-                    <h3 class="font-semibold text-slate-800 dark:text-slate-200">${title}</h3>
+                    <h3 class="font-bold text-sm">${title}</h3>
                 </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400">${desc}</p>
+                <p class="text-xs text-muted">${desc}</p>
             </div>
         `;
     },
@@ -106,7 +106,7 @@ const MediaModule = {
     },
 
     renderToolUI(toolId, container) {
-        container.innerHTML = `<div class="p-8 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500 mb-4"></i><p>Cargando...</p></div>`;
+        container.innerHTML = `<div class="p-8 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-primary-500 mb-4"></i><p>Cargando...</p></div>`;
 
         setTimeout(() => {
             switch (toolId) {
@@ -130,27 +130,27 @@ const MediaModule = {
     getTranscriptionUI() {
         return `
             <div class="max-w-xl mx-auto space-y-6">
-                ${!this.apiKey ? '<div class="bg-yellow-50 text-yellow-700 p-4 rounded-lg text-sm mb-4"><i class="fas fa-exclamation-triangle mr-2"></i> Necesitas configurar tu API Key de OpenAI arriba.</div>' : ''}
+                ${!this.apiKey ? '<div class="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm mb-4"><i class="fas fa-exclamation-triangle mr-2"></i> Necesitas configurar tu API Key de OpenAI arriba.</div>' : ''}
                 
-                <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer relative hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                <div class="border-2 border-dashed border-color rounded-xl p-8 text-center cursor-pointer relative hover:bg-slate-50">
                     <input type="file" id="audio-input" accept="audio/*,video/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="MediaModule.handleAudioSelect(this)">
-                    <i class="fas fa-microphone-lines text-3xl text-slate-400 mb-3"></i>
+                    <i class="fas fa-microphone-lines text-3xl text-muted mb-3"></i>
                     <p class="font-medium">Sube audio o video</p>
-                    <p class="text-xs text-slate-400 mt-2">MP3, MP4, MPEG, M4A, WAV, WEBM</p>
+                    <p class="text-xs text-muted mt-2">MP3, MP4, MPEG, M4A, WAV, WEBM</p>
                 </div>
 
-                <div id="audio-file-info" class="hidden flex items-center gap-3 p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                    <i class="fas fa-file-audio text-orange-500"></i>
+                <div id="audio-file-info" class="hidden flex items-center gap-3 p-3 bg-slate-100 rounded-lg">
+                    <i class="fas fa-file-audio text-primary-500"></i>
                     <span id="audio-name" class="text-sm font-medium">archivo.mp3</span>
                 </div>
 
-                <button onclick="MediaModule.startTranscription()" id="btn-transcribe" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg shadow-sm disabled:opacity-50 transition-colors">
+                <button onclick="MediaModule.startTranscription()" id="btn-transcribe" class="btn btn-primary w-full py-3" disabled>
                     Transcribir con Whisper
                 </button>
 
                 <div id="transcribe-result-area" class="hidden space-y-2">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Transcripción</label>
-                    <textarea id="transcribe-text" class="w-full h-48 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm resize-none"></textarea>
+                    <label class="input-label">Transcripción</label>
+                    <textarea id="transcribe-text" class="form-input h-48 resize-none"></textarea>
                 </div>
             </div>
         `;
@@ -161,6 +161,7 @@ const MediaModule = {
             document.getElementById('audio-file-info').classList.remove('hidden');
             document.getElementById('audio-file-info').classList.add('flex');
             document.getElementById('audio-name').textContent = input.files[0].name;
+            document.getElementById('btn-transcribe').disabled = false;
         }
     },
 
@@ -179,7 +180,7 @@ const MediaModule = {
         const file = input.files[0];
         const btn = document.getElementById('btn-transcribe');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Transcribiendo... (Esto puede tardar)';
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Transcribiendo...';
 
         const formData = new FormData();
         formData.append('file', file);
