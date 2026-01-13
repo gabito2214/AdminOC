@@ -459,7 +459,7 @@ const DocsModule = {
                 // 1. Background
                 const bgImg = document.createElement('img');
                 bgImg.src = cleanBgData;
-                bgImg.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; z-index:0; select-none';
+                bgImg.style.cssText = 'position:absolute; left:0; top:0; width:100%; height:100%; z-index:0; user-select:none;';
                 pageDiv.appendChild(bgImg);
 
                 // 2. Images
